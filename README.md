@@ -1,59 +1,113 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ProcureTrack
+A procurement and project delivery platform built with Laravel and Vue.
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+I’m building this project to bring together what I’ve worked on as a software developer so far, while learning things I haven’t had much experience with yet—especially Vue, Tailwind CSS, APIs, Docker, and deployment.
 
-## About Laravel
+Most of my experience is with PHP and Laravel, working on procurement modules, user management, claims, certifications, budgets, and delivery tracking. This project gives me a chance to build my own version from the ground up, explore different approaches, and have something I can walk through during interviews.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+# What’s the idea?
+The idea is to help a business manage its purchasing process in one place, from requesting something to receiving it and processing the payment.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+The main flow will look something like this:
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Purchase Request → Budget Approval → Supplier Quotation → Purchase Order → Delivery Inspection → Payment Claim → Completion
 
-## Learning Laravel
+For example, a staff member requests equipment, a manager approves the budget, a procurement officer selects a supplier, and the supplier submits delivery details. Once someone checks and accepts the delivery, the payment claim can move forward.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Each person has their own role, tasks, and permissions.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+# What I’m planning to build
+## Users and access
+- User invitations and account activation.
+- Roles for administrators, requesters, approvers, procurement officers, suppliers, and finance staff.
+- Permissions to control what each user can view and do.
+- Activity history showing who changed something and when.
+## Purchase requests and budgets
+- Create purchase requests with items, quantities, estimated costs, and attachments.
+- Submit requests for approval or return them for changes.
+- Set approval limits based on the purchase amount.
+- Track allocated, reserved, and remaining budgets.
+- Prevent users from approving their own requests.
+## Suppliers and quotations
+- Manage supplier profiles.
+- Invite suppliers to submit quotations.
+- Compare prices and supporting documents.
+- Record the selected supplier and the reason for the decision.
+## Purchase orders and deliveries
+- Create purchase orders from approved requests.
+- Track full and partial deliveries.
+- Let suppliers submit delivery details and documents.
+- Use inspection checklists to accept or reject delivered items.
+- Keep a record of outstanding items.
+## Claims and payment certificates
+- Submit payment claims with supporting documents.
+- Review claims against accepted deliveries.
+- Record approvals, rejections, and comments.
+- Generate payment certificates and track claim progress.
+This will track the payment workflow; actual bank payments are outside the initial plan.
+## Reports, imports, and history
+- Dashboards for pending tasks, budgets, deliveries, and claims.
+- Searchable tables with filtering, sorting, and pagination.
+- CSV imports with a preview of valid and invalid rows.
+- Downloadable reports.
+- Audit trails for important actions and status changes.
 
-## Laravel Sponsors
+# What I want to learn
+| Technology | What I’ll use it for |
+|---|---|
+| Laravel 12 | Backend logic, validation, permissions, queues, and database operations |
+| Vue 3 | Interactive pages, reusable components, forms, and tables |
+| Vue Router | Navigation between frontend pages |
+| Tailwind CSS | Styling and responsive layouts |
+| Laravel JSON API | Communication between the Vue frontend and Laravel backend |
+| Laravel Sanctum | Authentication for the frontend and API access |
+| MySQL | Application data, relationships, indexes, and transactions |
+| Docker Compose / Laravel Sail | Running the local development environment |
+| GitHub Actions | Running automated tests and build checks |
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+The frontend and backend will live in the same repository. Vue will communicate with Laravel through API endpoints under /api/v1.
+I’ll use Node.js tooling for the frontend, while keeping the backend in Laravel.
 
-### Premium Partners
+# Some challenges I want to work through
+A few situations I want the application to handle properly:
+- What happens if two people approve purchases against the same budget at the same time?
+- How do I prevent a double-click or repeated request from creating duplicate records?
+- Can someone bypass an approval step by calling the API directly?
+- What happens when only part of an order has been delivered?
+- How should the system handle a failed notification or export?
+- Can an import be retried without inserting the same records again?
+These are things I want to build, test, and be able to explain.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+# How I plan to build it
+I’ll build this in stages so there’s a working flow early on.
+1. Start with the basics
+   Set up Laravel, Vue, Tailwind, Docker, authentication, and the database.
+2. Build the first complete flow
+   Create a purchase request, submit it, approve it, and track its status.
+3. Connect the procurement process
+   Add budgets, suppliers, quotations, and purchase orders.
+4. Handle deliveries and claims
+   Add partial deliveries, inspections, payment claims, and certificates.
+5. Improve reliability
+   Add background jobs, import validation, audit logs, and tests for important business rules.
+6. Prepare the demo
+   Deploy the application, add sample accounts and data, document the API, and record a walkthrough.
+Support for multiple independent companies can come later, once the main workflow is working well.
 
-## Contributing
+# What I want this repository to include
+- Clear setup instructions.
+- Sample data and demo accounts for different roles.
+- A database relationship diagram.
+- API documentation with example requests and responses.
+- Tests for permissions, approvals, budgets, and duplicate submissions.
+- GitHub issues and milestones to track progress.
+- Short notes explaining important technical decisions.
+- A live demo and walkthrough video.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# A note on Laravel 12
+I’m planning to start with Laravel 12. Since its security support ends on 24 February 2027, upgrading to Laravel 13 will be part of the project roadmap if the application stays publicly available. See the Laravel support policy.
 
-## Code of Conduct
+# Project status
+Currently in the planning stage. Features listed here are planned and will be updated as development progresses.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This is an independent personal project using fictional business data. It’s a place for me to apply what I already know, try things I haven’t done before, and show how I approach building a complete application.
