@@ -1,0 +1,1 @@
+<div class="faq-list">@foreach($design['faq'] as [$question,$answer])<details class="panel faq-item"><summary>{{ $question }}<span aria-hidden="true">+</span></summary><p>{{ $answer }}</p></details>@endforeach</div>

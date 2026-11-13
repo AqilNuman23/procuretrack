@@ -1,0 +1,1 @@
+<section class="panel"><div class="panel-heading"><div><h2>Workspace timeline</h2><p>Illustrative events, with actor and time.</p></div><span class="badge blue">Fictional history</span></div>@include('design.partials.timeline')</section>
