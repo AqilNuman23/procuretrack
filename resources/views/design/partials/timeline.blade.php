@@ -1,0 +1,1 @@
+<div class="timeline">@foreach($design['activity'] as [$actor,$action,$subject,$time])<div class="timeline-row"><span class="timeline-dot"><x-design.icon name="check" /></span><div><strong>{{ $action }}</strong><p>{{ $actor }} <span aria-hidden="true">·</span> {{ $subject }}</p></div><time>{{ $time }}</time></div>@endforeach</div>
