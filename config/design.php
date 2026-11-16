@@ -11,6 +11,7 @@ $fields = [
     'password' => ['Password', 'password', ''],
     'confirm' => ['Confirm password', 'password', ''],
     'companyEmail' => ['Company email', 'email', 'aisyah@company.example'],
+    'recoveryEmail' => ['Current recovery email', 'email', 'aisyah@personal.example'],
     'notes' => ['Notes', 'textarea', ''],
 ];
 $page = fn ($title, $module, $type, $description, $extra = []) => array_merge(compact('title', 'module', 'type', 'description'), $extra);
@@ -91,8 +92,8 @@ return [
         'department-create' => $page('Create department', null, 'form', 'A reference form; no record will be created.', ['parent' => 'departments', 'fields' => [['Department name', 'text', ''], ['Code', 'text', ''], ['Description', 'textarea', '']]]),
         'department-details' => $page('Operations department', null, 'detail', 'Reference detail screen for shared module conventions.', ['parent' => 'departments', 'action' => ['Edit department', 'department-edit']]),
         'department-edit' => $page('Edit department', null, 'form', 'A reference edit form with fictional values.', ['parent' => 'departments', 'fields' => [['Department name', 'text', 'Operations'], ['Code', 'text', 'OPS'], ['Description', 'textarea', 'Day-to-day business operations.']]]),
-        'login' => $form('Welcome back.', null, 'Sign in to your company workspace.', ['companyEmail', 'password'], ['auth' => true, 'submit' => 'Sign in · preview', 'next' => 'hub']),
-        'forgot-password' => $form('Forgot your password?', null, 'Recovery destination is proposed; final policy remains open.', ['companyEmail'], ['auth' => true, 'submit' => 'Send reset instructions', 'next' => 'reset-sent']),
+        'login' => $form('Welcome back.', null, 'Sign in with your Worker ID and application password.', ['worker', 'password'], ['auth' => true, 'submit' => 'Sign in · preview', 'next' => 'hub']),
+        'forgot-password' => $form('Forgot your password?', null, 'Use your Worker ID and current verified recovery email.', ['worker', 'recoveryEmail'], ['auth' => true, 'submit' => 'Send reset instructions', 'next' => 'reset-sent']),
         'reset-password' => $form('Choose a new password.', null, 'Set a private password for your application account.', ['password', 'confirm'], ['auth' => true, 'submit' => 'Reset password', 'next' => 'login']),
         'invitation-accept' => $page('You’re invited.', null, 'status', 'Farid Hassan has invited you to join the Operations team.', ['auth' => true, 'next' => 'waiting-review', 'submit' => 'Accept invitation']),
         'activation' => $form('Let’s get you started.', null, 'Confirm your worker ID against your approved record.', ['worker'], ['auth' => true, 'next' => 'password-setup', 'submit' => 'Continue to password setup']),

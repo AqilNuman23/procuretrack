@@ -14,7 +14,7 @@ With the existing Sail application running:
 
 For the current Sail port mapping, the hub is `http://localhost:8080/design`.
 
-The existing `/` Vue application is preserved. The preview uses its own CSS and JavaScript, so it does not require a Vite development server or frontend build. Preview routes are registered only in Laravel's `local` and `testing` environments. Do not change a deployed application's environment to expose this prototype.
+The existing Vue status demo is preserved at `/status-demo`. The root now leads to the implemented login and protected Blade workspace; see [authentication-access.md](authentication-access.md). The preview uses its own CSS and JavaScript, so it does not require a Vite development server or frontend build. Preview routes are registered only in Laravel's `local` and `testing` environments. Do not change a deployed application's environment to expose this prototype.
 
 ## Edit shared content in one place
 

@@ -12,6 +12,6 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Foundation numbering uses model events; do not disable them here.
-        $this->call(FoundationSeeder::class);
+        $this->call([FoundationSeeder::class, AccessSeeder::class]);
     }
 }
