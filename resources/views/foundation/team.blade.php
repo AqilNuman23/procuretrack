@@ -1,0 +1,6 @@
+@extends('foundation.layout')
+@section('content')
+<form method="POST" action="{{ route('teams.update', $team) }}" class="panel form-panel">@csrf<div class="panel-heading"><h2>Team details</h2></div><div class="form-fields"><x-foundation.field name="code" label="Team code" :value="$team->TMCode" maxlength="30" /><x-foundation.field name="name" label="Team name" :value="$team->TMName" maxlength="150" /></div><div class="form-actions"><button class="button primary">Save team</button></div></form>
+<form method="POST" action="{{ route('teams.pic', $team) }}" class="panel form-panel" data-confirm="Assign this PIC? Existing delegations from the previous PIC will be revoked.">@csrf<div class="panel-heading"><h2>Team PIC</h2></div><div class="form-fields"><p>Current PIC: {{ $team->picAssignment?->user?->USName ?? 'Not assigned' }}. Only fully onboarded active team members are listed.</p><label class="field"><span>New PIC</span><select name="pic" required><option value="">Choose a member</option>@foreach($members as $person)<option value="{{ $person->USNo }}">{{ $person->USName }} ({{ $person->USWorkerID }})</option>@endforeach</select></label></div><div class="form-actions"><button class="button primary">Assign PIC</button></div></form>
+<a href="{{ route('teams.index') }}">Back to teams</a>
+@endsection

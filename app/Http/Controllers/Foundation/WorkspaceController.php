@@ -28,6 +28,21 @@ class WorkspaceController extends Controller
     public function module(Request $request, Module $module, ModuleAccess $access)
     {
         Gate::authorize('view', $module);
+        if ($module->MOCode === 'settings.components') {
+            return redirect()->route('components.index');
+        }
+        if ($module->MOCode === 'settings.departments') {
+            return redirect()->route('departments.index');
+        }
+        if ($module->MOCode === 'people.invitations') {
+            return redirect()->route('invitations.index');
+        }
+        if ($module->MOCode === 'people.mailboxes') {
+            return redirect()->route('mailboxes.index');
+        }
+        if ($module->MOCode === 'people.teams') {
+            return redirect()->route('teams.index');
+        }
         if ($module->MOCode === 'settings.access') {
             return redirect()->route('access.index');
         }
@@ -37,7 +52,11 @@ class WorkspaceController extends Controller
         if ($module->MOCode === 'people.history') {
             return redirect()->route('activity.index');
         }
-        $users = $module->MOCode === 'people.users' ? $access->visibleUsers($request->user())->with('team')->orderBy('USName')->paginate(15) : null;
+        $filters = $request->validate(['search' => ['nullable', 'string', 'max:150'], 'status' => ['nullable', 'in:active,deactivated,pending_activation']]);
+        $users = $module->MOCode === 'people.users' ? $access->visibleUsers($request->user())->with('team')
+            ->when($filters['search'] ?? null, fn ($q, $value) => $q->where(fn ($q) => $q->where('USName', 'like', '%'.$value.'%')->orWhere('USWorkerID', 'like', '%'.$value.'%')))
+            ->when($filters['status'] ?? null, fn ($q, $value) => $q->where('USStatus', $value))
+            ->orderBy('USName')->paginate(15)->withQueryString() : null;
         $children = $module->children()->where('MOActive', true)->get()->filter(fn ($child) => $access->can($request->user(), $child));
 
         return view('foundation.module', ['title' => $module->MOName, 'description' => config('modules')[$module->MOCode]['description'] ?? '', 'currentModule' => $module, 'children' => $children, 'users' => $users]);

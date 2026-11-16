@@ -3,7 +3,7 @@
     $actor = auth()->user();
     $access = app(\App\Services\Access\ModuleAccess::class);
     $registry = config('modules');
-    $section = request()->routeIs('access.*') ? 'settings' : (request()->routeIs('recovery.*','users.*','activity.*') ? 'people' : null);
+    $section = request()->routeIs('access.*','departments.*') ? 'settings' : (request()->routeIs('recovery.*','users.*','teams.*','invitations.*','mailboxes.*','activity.*') ? 'people' : null);
     $sidebarRoot = isset($currentModule) ? ($currentModule->parent ?? $currentModule) : ($section && $actor ? \App\Models\Foundation\Module::where('MOCode', $section)->first() : null);
     $companyName = $actor?->company?->COName;
 @endphp
