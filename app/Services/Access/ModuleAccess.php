@@ -29,7 +29,7 @@ class ModuleAccess
 
     public function pic(User $user): bool
     {
-        return $user->US_TMNo && $user->picAssignments()->where('TP_TMNo', $user->US_TMNo)->exists()
+        return $user->US_TMNo && $user->team()->where('TMActive', true)->exists() && $user->picAssignments()->where('TP_TMNo', $user->US_TMNo)->exists()
             && $user->roleAssignments()->whereHas('role', fn (Builder $q) => $q->where('RLCode', 'team_pic'))->exists();
     }
 
@@ -47,6 +47,9 @@ class ModuleAccess
         if ($this->administrator($user)) {
             return true;
         }
+        if (in_array($module->MOCode, ['people.teams', 'people.mailboxes', 'settings.components'])) {
+            return false;
+        }
         if (in_array($module->MOCode, ['settings.access', 'people.recovery']) && ! $this->pic($user)) {
             return false;
         }
@@ -61,7 +64,7 @@ class ModuleAccess
             $mode = 1;
         }
         if ($this->pic($user)) {
-            if (in_array($module->MOCode, ['people.users', 'people.recovery', 'settings.access'])) {
+            if (in_array($module->MOCode, ['people.users', 'people.recovery', 'people.invitations', 'settings.access'])) {
                 $mode = 1;
             }
             if ($module->MOCode === 'settings.access') {

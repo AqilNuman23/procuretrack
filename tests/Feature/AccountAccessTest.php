@@ -4,19 +4,26 @@ namespace Tests\Feature;
 
 use App\Models\Foundation\AccessGrant;
 use App\Models\Foundation\AccessGroup;
+use App\Models\Foundation\Activation;
 use App\Models\Foundation\Company;
+use App\Models\Foundation\Department;
 use App\Models\Foundation\EmailHistory;
 use App\Models\Foundation\EmailVerification;
 use App\Models\Foundation\FoundationLog;
 use App\Models\Foundation\GroupMembership;
+use App\Models\Foundation\Invitation;
 use App\Models\Foundation\Module;
 use App\Models\Foundation\PasswordReset;
 use App\Models\Foundation\RecoveryRequest;
+use App\Models\Foundation\Team;
 use App\Models\Foundation\User;
 use App\Notifications\AccountMail;
 use App\Services\Access\AccessManager;
 use App\Services\Access\ModuleAccess;
 use App\Services\Access\ModuleCatalog;
+use App\Services\AccountMailer;
+use App\Services\OnboardingService;
+use App\Services\PeopleAdministration;
 use App\Services\RecoveryService;
 use App\Support\Foundation\FoundationWriter;
 use Database\Seeders\DatabaseSeeder;
@@ -444,6 +451,191 @@ class AccountAccessTest extends TestCase
         $this->assertSame(1, $worker->fresh()->USAuthVersion);
         $this->getJson('/api/v1/me')->assertUnauthorized();
         $this->post('/login', ['login' => 'PT-1043', 'password' => 'A-new-private-password-456'])->assertRedirect('/workspace');
+    }
+
+    public function test_team_administration_requires_admin_and_pic_assignment_revokes_old_authority(): void
+    {
+        $admin = $this->person('PT-1000');
+        $pic = $this->person('PT-1011');
+        $member = $this->person('PT-1043');
+        $team = $pic->team;
+        $this->manager->delegation($admin, $pic, $this->module('finance'), 'edit', true);
+        $this->manager->direct($pic, [$member->USNo], $this->module('finance.overview'), 'edit');
+        $this->signIn('PT-1043');
+        $this->post('/teams', ['code' => 'DENIED', 'name' => 'Denied'])->assertForbidden();
+        $this->get('/teams')->assertForbidden();
+        $this->signIn('PT-1000');
+        $this->get('/teams')->assertOk()->assertSee($team->TMName);
+        $this->get(route('teams.show', $team))->assertOk();
+        $this->post('/teams', ['code' => 'NEW', 'name' => 'New team'])->assertRedirect();
+        $this->post('/teams', ['code' => 'NEW', 'name' => 'Duplicate'])->assertSessionHasErrors('code');
+        $this->post(route('teams.pic', $team), ['pic' => $this->person('PT-1025')->USNo])->assertSessionHasErrors('pic');
+        $this->post(route('teams.pic', $team), ['pic' => $member->USNo])->assertRedirect();
+        $this->assertTrue($this->access->pic($member->fresh()));
+        $this->assertFalse($this->access->pic($pic->fresh()));
+        $this->assertFalse($this->access->can($member->fresh(), 'finance.overview'));
+        $this->assertSame(0, $pic->delegations()->where('DLActive', true)->count());
+        $this->post(route('teams.pic', $team), ['pic' => $pic->USNo])->assertRedirect();
+        $this->assertFalse($this->access->can($member->fresh(), 'finance.overview'));
+    }
+
+    public function test_administration_protects_last_admin_current_pic_and_reactivation_readiness(): void
+    {
+        $this->signIn('PT-1000');
+        $admin = $this->person('PT-1000');
+        $this->post(route('users.update', $admin), ['name' => $admin->USName, 'team' => $admin->US_TMNo, 'status' => 'deactivated'])->assertSessionHasErrors('status');
+        $pic = $this->person('PT-1011');
+        $this->post(route('users.update', $pic), ['name' => $pic->USName, 'team' => $pic->US_TMNo, 'status' => 'deactivated'])->assertSessionHasErrors('team');
+        $member = $this->person('PT-1043');
+        $this->post(route('users.update', $member), ['name' => 'Updated member', 'team' => $member->US_TMNo, 'status' => 'deactivated'])->assertRedirect();
+        $this->assertSame('deactivated', $member->fresh()->USStatus);
+        $this->assertSame(1, $member->fresh()->USAuthVersion);
+        $this->post(route('users.update', $member), ['name' => $member->USName, 'team' => $member->US_TMNo, 'status' => 'active'])->assertRedirect();
+        $this->assertSame('active', $member->fresh()->USStatus);
+        $this->writer->update($member->mailbox, ['MXStatus' => 'failed']);
+        $this->post(route('users.update', $member), ['name' => $member->USName, 'team' => $member->US_TMNo, 'status' => 'active'])->assertSessionHasErrors('status');
+        $other = $this->writer->create(Company::class, ['COCode' => 'OTHER', 'COName' => 'Other company']);
+        $team = $this->writer->create(Team::class, ['TM_CONo' => $other->CONo, 'TMCode' => 'OTHER', 'TMName' => 'Other team']);
+        $this->post(route('users.update', $member), ['name' => $member->USName, 'team' => $team->TMNo, 'status' => 'deactivated'])->assertSessionHasErrors('team');
+    }
+
+    public function test_onboarding_runs_from_invitation_to_private_password_and_preserves_separate_states(): void
+    {
+        $pic = $this->person('PT-1011');
+        $service = app(OnboardingService::class);
+        $this->signIn('PT-1011');
+        $this->get('/invitations')->assertOk();
+        $this->post('/invitations', ['team' => $pic->US_TMNo, 'name' => 'New Member', 'worker_id' => 'PT-NEW', 'email' => 'new@personal.example'])->assertRedirect();
+        $invitation = Invitation::query()->where('IVWorkerID', 'PT-NEW')->sole();
+        $token = $this->token('invitation');
+        $this->get('/invitation/'.$token)->assertOk();
+        $this->post('/invitation', ['token' => $token])->assertRedirect('/login');
+        $this->assertSame('awaiting_review', $invitation->fresh()->IVStatus);
+        $this->post('/invitation', ['token' => $token])->assertSessionHasErrors('token');
+        $this->post(route('invitations.action', $invitation), ['action' => 'approved'])->assertForbidden();
+        $this->signIn('PT-1000');
+        $this->post(route('invitations.action', $invitation), ['action' => 'approved'])->assertRedirect();
+        $user = $invitation->fresh()->user;
+        $this->assertSame('pending_activation', $user->USStatus);
+        $this->assertFalse($this->access->eligible($user));
+        $this->assertSame('pending', $user->mailbox->MXStatus);
+        $this->get('/mailboxes')->assertOk()->assertSee('New Member');
+        $this->post(route('mailboxes.update', $user), ['action' => 'verify', 'email' => 'new@company.example'])->assertSessionHasErrors('verified');
+        $this->post(route('mailboxes.update', $user), ['action' => 'verify', 'email' => 'new@company.example', 'verified' => 1])->assertRedirect();
+        $this->assertFalse($user->fresh()->mailbox->MXIsMock);
+        $this->assertFalse($this->access->eligible($user->fresh()));
+        Notification::assertSentOnDemand(AccountMail::class, fn ($mail, $channels, $to) => $mail->kind === 'activation' && $to->routes['mail'] === 'new@personal.example');
+        $activation = $this->token('activation');
+        $this->get('/activation/'.$activation)->assertOk();
+        $this->post('/activation', ['token' => $activation, 'worker_id' => 'WRONG', 'password' => self::PASSWORD, 'password_confirmation' => self::PASSWORD])->assertSessionHasErrors('token');
+        $this->post('/activation', ['token' => $activation, 'worker_id' => 'PT-NEW', 'password' => self::PASSWORD, 'password_confirmation' => self::PASSWORD])->assertRedirect('/login');
+        $this->assertTrue($this->access->eligible($user->fresh()));
+        $this->assertTrue(Hash::check(self::PASSWORD, $user->fresh()->USPassword));
+        $this->post('/activation', ['token' => $activation, 'worker_id' => 'PT-NEW', 'password' => self::PASSWORD, 'password_confirmation' => self::PASSWORD])->assertSessionHasErrors('token');
+    }
+
+    public function test_invitation_resend_expiry_rejection_and_cross_team_boundaries(): void
+    {
+        $pic = $this->person('PT-1011');
+        $this->signIn('PT-1011');
+        $data = ['team' => $pic->US_TMNo, 'name' => 'New Member', 'worker_id' => 'PT-NEW', 'email' => 'new@personal.example'];
+        $this->post('/invitations', $data)->assertRedirect();
+        $invitation = Invitation::query()->where('IVWorkerID', 'PT-NEW')->sole();
+        $old = $this->token('invitation');
+        $this->post('/invitations', $data)->assertSessionHasErrors('worker_id');
+        $this->post('/invitations', array_replace($data, ['team' => $this->person('PT-1025')->US_TMNo, 'worker_id' => 'PT-OTHER', 'email' => 'other@personal.example']))->assertForbidden();
+        $this->post(route('invitations.action', $invitation), ['action' => 'resend'])->assertRedirect();
+        $new = $this->token('invitation');
+        $this->assertNotSame($old, $new);
+        $this->post('/invitation', ['token' => $old])->assertSessionHasErrors('token');
+        $this->writer->update($invitation->fresh(), ['IVExpiresAt' => now()->subMinute()]);
+        $this->post('/invitation', ['token' => $new])->assertSessionHasErrors('token');
+        $this->post(route('invitations.action', $invitation), ['action' => 'resend'])->assertRedirect();
+        $this->post('/invitation', ['token' => $this->token('invitation')])->assertRedirect();
+        $this->signIn('PT-1000');
+        $this->post(route('invitations.action', $invitation), ['action' => 'rejected'])->assertSessionHasErrors('reason');
+        $this->post(route('invitations.action', $invitation), ['action' => 'rejected', 'reason' => 'Details could not be verified.'])->assertRedirect();
+        $this->post(route('invitations.action', $invitation), ['action' => 'approved'])->assertSessionHasErrors('invitation');
+        $this->assertSame(0, User::query()->where('USWorkerID', 'PT-NEW')->count());
+    }
+
+    public function test_department_reference_module_scopes_records_validates_and_audits_changes(): void
+    {
+        $this->signIn('PT-1043');
+        $this->get('/departments')->assertForbidden();
+        $this->signIn('PT-1000');
+        $this->get('/departments')->assertOk();
+        $this->post('/departments', ['code' => 'NEW', 'name' => 'New Department', 'active' => 1])->assertRedirect();
+        $record = Department::query()->where('DPCode', 'NEW')->sole();
+        $this->get(route('departments.show', $record))->assertOk()->assertSee('New Department');
+        $this->post('/departments', ['code' => 'NEW', 'name' => 'Duplicate', 'active' => 1])->assertSessionHasErrors('code');
+        $this->post(route('departments.update', $record), ['code' => 'NEW', 'name' => 'Revised Department', 'active' => 0])->assertRedirect();
+        $this->get('/departments?search=Revised&status=inactive&sort=code&direction=desc')->assertOk()->assertSee('Revised Department');
+        $this->assertSame(2, FoundationLog::query()->where('FLTable', 'MSDepartment')->where('FLRecordNo', $record->DPNo)->count());
+        $other = $this->writer->create(Company::class, ['COCode' => 'OTHER', 'COName' => 'Other company']);
+        $outsider = $this->writer->create(Department::class, ['DP_CONo' => $other->CONo, 'DPCode' => 'PRIVATE', 'DPName' => 'Private Department']);
+        $this->get('/departments')->assertDontSee('Private Department');
+        $this->get(route('departments.show', $outsider))->assertNotFound();
+        $this->manager->direct($this->person('PT-1000'), [$this->person('PT-1043')->USNo], $this->module('settings.departments'), 'read');
+        $this->signIn('PT-1043');
+        $this->get('/departments')->assertOk();
+        $this->post('/departments', ['code' => 'DENIED', 'name' => 'Denied', 'active' => 1])->assertForbidden();
+    }
+
+    public function test_transfer_revokes_derived_grants_and_old_sessions_without_removing_independent_access(): void
+    {
+        $admin = $this->person('PT-1000');
+        $pic = $this->person('PT-1011');
+        $member = $this->person('PT-1043');
+        $leaf = $this->module('finance.overview');
+        $this->manager->delegation($admin, $pic, $this->module('finance'), 'edit', true);
+        $this->manager->direct($pic, [$member->USNo], $leaf, 'edit');
+        $this->manager->direct($admin, [$member->USNo], $leaf, 'read');
+        $this->signIn('PT-1043');
+        app(PeopleAdministration::class)->updateUser($admin, $member, ['name' => $member->USName, 'team' => $this->person('PT-1025')->US_TMNo, 'status' => 'active']);
+        $this->getJson('/api/v1/me')->assertUnauthorized();
+        $this->assertTrue($this->access->can($member->fresh(), $leaf));
+        $this->assertFalse($this->access->can($member->fresh(), $leaf, 'edit'));
+        app(PeopleAdministration::class)->updateUser($admin, $member->fresh(), ['name' => $member->USName, 'team' => $pic->US_TMNo, 'status' => 'active']);
+        $this->assertFalse($this->access->can($member->fresh(), $leaf, 'edit'));
+    }
+
+    public function test_onboarding_failed_delivery_revokes_tokens_and_allows_explicit_retry(): void
+    {
+        $pic = $this->person('PT-1011');
+        $this->mock(AccountMailer::class, function ($mock) {
+            $mock->shouldReceive('url')->andReturn('https://example.test/invitation/token');
+            $mock->shouldReceive('send')->andReturn(false);
+        });
+        $this->signIn('PT-1011');
+        $this->post('/invitations', ['team' => $pic->US_TMNo, 'name' => 'Delivery failure', 'worker_id' => 'PT-FAIL', 'email' => 'fail@personal.example'])->assertSessionHasErrors('invitation');
+        $invitation = Invitation::query()->where('IVWorkerID', 'PT-FAIL')->sole();
+        $this->assertNull($invitation->IVTokenHash);
+        $this->assertSame('invited', $invitation->IVStatus);
+    }
+
+    public function test_activation_resend_revokes_old_links_expiry_is_enforced_and_components_render(): void
+    {
+        $pic = $this->person('PT-1011');
+        $admin = $this->person('PT-1000');
+        $service = app(OnboardingService::class);
+        $invitation = $service->invite($pic, ['team' => $pic->US_TMNo, 'name' => 'Activation test', 'worker_id' => 'PT-ACT', 'email' => 'activate@personal.example']);
+        $service->accept($this->token('invitation'));
+        $service->review($admin, $invitation, 'approved', null);
+        $user = $invitation->fresh()->user;
+        $service->mailbox($admin, $user, ['email' => 'activate@company.example', 'verified' => 1]);
+        $old = $this->token('activation');
+        $service->sendActivation($admin, $user);
+        $current = $this->token('activation');
+        $this->post('/activation', ['token' => $old, 'worker_id' => 'PT-ACT', 'password' => self::PASSWORD, 'password_confirmation' => self::PASSWORD])->assertSessionHasErrors('token');
+        $activation = Activation::query()->where('AVTokenHash', hash('sha256', $current))->sole();
+        $this->writer->update($activation, ['AVExpiresAt' => now()->subMinute()]);
+        $this->post('/activation', ['token' => $current, 'worker_id' => 'PT-ACT', 'password' => self::PASSWORD, 'password_confirmation' => self::PASSWORD])->assertSessionHasErrors('token');
+        $this->assertSame('pending_activation', $user->fresh()->USStatus);
+        $this->signIn('PT-1043');
+        $this->get('/components')->assertForbidden();
+        $this->signIn('PT-1000');
+        $this->get('/components')->assertOk()->assertSee('Loading records')->assertSee('Records could not be loaded');
     }
 
     private function person(string $worker): User

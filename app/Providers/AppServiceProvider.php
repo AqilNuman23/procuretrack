@@ -42,6 +42,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('view-security-history', fn (User $user) => app(ModuleAccess::class)->eligible($user) && app(ModuleAccess::class)->administrator($user));
         $identity = fn (Request $request, string $field) => $request->ip().'|'.hash('sha256', is_string($request->input($field)) ? strtolower(substr(trim($request->input($field)), 0, 50)) : 'invalid');
         RateLimiter::for('account-login', fn (Request $request) => [Limit::perMinute(30)->by($request->ip()), Limit::perMinute(6)->by($identity($request, 'login'))]);
+        RateLimiter::for('foundation-onboarding', fn (Request $request) => [
+            Limit::perMinute(30)->by('onboarding-ip:'.$request->ip()),
+            Limit::perMinute($request->routeIs('activation.store') ? 5 : 20)->by('onboarding-action:'.$request->route()->getName().'|'.$request->ip().'|'.$request->user()?->getKey()),
+        ]);
         RateLimiter::for('account-recovery', fn (Request $request) => [Limit::perMinute(20)->by($request->ip()), Limit::perMinute(3)->by($identity($request, 'worker_id'))]);
     }
 }

@@ -316,3 +316,80 @@ Once these are settled, turn the foundation into small user-problem tickets and 
 ## 16. Accepted login and permission decisions — 16 November 2026
 
 Worker ID login, local-only admin/admin credentials, private administrator setup, verified recovery-email changes, PIC recovery review, and bounded group/individual module grants are implemented separately from the remaining onboarding/provider work. See [authentication-access.md](authentication-access.md) for the current rules, schema additions, setup commands, and tests.
+
+
+## 17. Remaining foundation checklist — 16 November 2026
+
+Agreed follow-up work before the main procurement implementation. These items are pending, not completed features. Reuse the implemented database, transactional audit, authentication, recovery, and module-access foundations described in authentication-access.md.
+
+- [ ] **Teams and user administration:** create/edit teams, assign/change PICs, transfer members, deactivate/reactivate accounts, and protect the last active administrator. Verify that account/team changes affect existing access on the next request.
+- [ ] **Complete onboarding:** invitation → acceptance → administrator review → mailbox readiness → activation → private password setup. Cover expired links, resends, duplicates, rejection, single-use tokens, and repeated actions. A new user must not depend on already-approved seed records.
+- [ ] **Mailbox process:** choose manual verification or automatic provisioning; define existing-mailbox verification and employee offboarding. Clearly label local mock mode. Real provisioning remains a separate milestone if using a mock initially.
+- [ ] **Shared working components:** maintained forms, validation errors, tables, filters, pagination, confirmations, loading/empty/error states, and mobile navigation. Verify keyboard and narrow-screen behaviour on functional pages.
+- [ ] **Departments reference module:** implement backend permissions, scoped queries, validation, search/pagination, and transactional audit history. Prove the conventions before extracting a module generator.
+- [ ] **Basic CI:** automatically run meaningful existing backend tests against an isolated testing database and the frontend production build. A failing test/build must fail the check.
+
+Suggested implementation sequence: teams/account administration → onboarding/mailbox process → shared components and Departments → verify CI before procurement work. Establish CI early where possible. PT-001 workflow design may proceed alongside this work.
+
+Deferred reminder: revisit the documented Vue/Tailwind direction versus the current live Blade/prototype CSS implementation when choosing the first procurement screen implementation. The owner has explicitly set this discussion aside for now; do not treat it as the next foundation task.
+
+## 18. Proposed document-editing foundation — ONLYOFFICE
+
+Status: owner-requested addition for discussion and later implementation; not installed. Integrate ONLYOFFICE Docs into ProcureTrack so authorized people can create and edit documents within the website. Modules can have default document templates.
+
+### Agreed opening rule
+
+Resolve a document for a specific module record and document purpose/type:
+
+1. If an existing saved document belongs to that record/purpose, open it.
+2. Otherwise, if the module has an applicable default template, create a new document by copying that template and open the new document.
+3. Otherwise, create and open a valid blank document of the requested type.
+
+Opening an existing document must never reset its contents from a template. Editing a record document must never change the shared template. Later template changes apply to newly created documents, not existing documents.
+
+### Proposed implementation checks
+
+- [ ] Select an ONLYOFFICE Docs edition/version and review its current licensing, branding, capacity, and hosting requirements before installation. Community Edition is a free self-hosted candidate, not a decided deployment configuration.
+- [ ] Run Document Server as a separate service alongside Laravel; configure browser/server connectivity and JWT authentication without exposing secrets.
+- [ ] Store documents and templates privately, with metadata linking each document to its company, module, record, purpose/type, and template version where applicable.
+- [ ] Authorize opening, editing, downloading, and template administration in Laravel. Read-only access and submitted/approved record restrictions must also apply to editor configuration.
+- [ ] Implement authenticated document retrieval and validated save callbacks. Persist the edited file durably in application-controlled storage; opening the editor alone does not save a document into ProcureTrack.
+- [ ] Make first creation atomic/idempotent so two simultaneous opens do not create competing documents. Use shared editing-session keys correctly and advance versions after completed saves without breaking active co-editing sessions.
+- [ ] Handle repeated/delayed callbacks and failed saves without silently overwriting newer content; expose pending/failed save outcomes and a recovery path.
+- [ ] Record creation and saved versions in appropriate history without recording secrets or document contents in general logs. Include files in the backup/restore plan.
+- [ ] Demonstrate reopening saved content, copying a template without modifying it, blank fallback, denied access, concurrent first opens, and save failure/retry.
+
+### Scope to discuss next
+
+- Start with word-processing documents (.docx), or also spreadsheets/presentations?
+- Which first module/document should demonstrate the integration?
+- Who can upload/change default templates, and is the default selected per module or per document purpose within a module?
+- Should templates initially be copied unchanged, or should a later phase populate placeholders from business data?
+- When a business record is submitted/approved, should its document become read-only or require an explicit revision?
+
+Suggested first slice: one document purpose on a reference record, one optional default template, existing/template/blank resolution, private storage, permissions, and a verified save/reopen cycle. This is a reusable supporting capability; it does not replace structured procurement data or approval rules.
+
+Official integration references:
+
+- [Opening a file](https://api.onlyoffice.com/docs/docs-api/get-started/how-it-works/opening-file/)
+- [Saving a file](https://api.onlyoffice.com/docs/docs-api/get-started/how-it-works/saving-file/)
+- [Callback handler](https://api.onlyoffice.com/docs/docs-api/usage-api/callback-handler/)
+- [Community Edition licensing FAQ](https://helpcenter.onlyoffice.com/docs/installation/community/faq)
+
+## 19. Accepted implementation decisions — 16 November 2026
+
+- Start with administrator-created, manually verified real company mailboxes. No provider API integration is required for the first foundation release. Application deactivation does not itself disable provider access; administrators must complete provider offboarding separately.
+- Assign a PIC from existing active, approved, activated members of that same active team. Onboard a new person as a member before assigning PIC responsibility.
+- Implement the remaining foundation in small reviewable steps, beginning with Teams and account administration. Preserve existing login, recovery, permission, and transactional audit behavior.
+
+
+## 20. Foundation implementation tracking
+
+The six follow-ups now have local implementations. See [foundation-implementation.md](foundation-implementation.md) for the page map, business rules, setup, learning map, and remaining verification. The checklist in section 17 is the acceptance checklist; implementation alone does not complete manual review or an observed hosted CI run.
+
+- Teams/account administration: functional administrator pages and transaction rules implemented.
+- Onboarding: functional invitation, review, activation, resend/revoke, and failure handling implemented.
+- Mailboxes: manual verification and activation delivery implemented; actual provider verification remains the administrator's responsibility.
+- Shared components: functional components and administrator showcase implemented; desktop/mobile and keyboard review pending.
+- Departments: reference module implemented with scoped read/edit access and audit history.
+- CI: GitHub Actions workflow added; local test/build verification is recorded in foundation-implementation.md. Hosted execution and branch protection are not configured by this local change.

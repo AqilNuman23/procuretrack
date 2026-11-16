@@ -34,6 +34,16 @@
         button.setAttribute('aria-label', showing ? 'Hide password' : 'Show password'); button.setAttribute('aria-pressed', String(showing));
     }));
     document.querySelectorAll('form[data-confirm]').forEach(form => form.addEventListener('submit', event => { if (!confirm(form.dataset.confirm)) event.preventDefault(); }));
+    document.querySelectorAll('form').forEach(form => form.addEventListener('submit', event => {
+        if (event.defaultPrevented || form.method.toLowerCase() !== 'post') return;
+        if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
+        form.dataset.submitting = 'true';
+        form.setAttribute('aria-busy', 'true');
+        // Keep the submitter enabled so its name/value is included in the request.
+        form.querySelectorAll('button[type="submit"],button:not([type])').forEach(button => button.setAttribute('aria-disabled', 'true'));
+        const message = document.createElement('p'); message.setAttribute('role', 'status'); message.textContent = 'Saving, please wait…'; form.append(message);
+    }));
+    window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
     const rows = document.querySelector('[data-group-rows]');
     if (rows) {
         const template = rows.firstElementChild.cloneNode(true); let counter = 1;

@@ -11,7 +11,7 @@ class AccountResponseHeaders
     {
         $response = $next($request);
         $response->headers->set('Cache-Control', 'no-store, private');
-        $response->headers->set('Referrer-Policy', $request->routeIs('password.*', 'recovery.verify*') ? 'no-referrer' : 'same-origin');
+        $response->headers->set('Referrer-Policy', $request->routeIs('password.*', 'recovery.verify*', 'invitation.*', 'activation.*') ? 'no-referrer' : 'same-origin');
 
         return $response;
     }
