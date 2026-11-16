@@ -1,6 +1,6 @@
 # Foundation database
 
-Status: foundation schema and fictional seed data. The Blade design preview is still configuration-driven. No account, invitation, provisioning, or administration endpoints have been implemented.
+Status: baseline foundation schema and fictional seed data. Login, application recovery, and group/module access are now implemented in [authentication-access.md](authentication-access.md), which documents 10 additional tables. The separate design gallery remains configuration-driven; invitation onboarding and live provisioning remain separate tickets.
 
 ## Naming and keys
 
@@ -102,7 +102,7 @@ This is an application write gateway, not a database trigger or global exception
 
 ## Existing Laravel tables
 
-Laravel's current `users`, `sessions`, `password_reset_tokens`, `personal_access_tokens`, queue, and cache tables retain their names and columns. The existing `App\Models\User` and auth provider are unchanged. `MSUser` is the foundation user model, not yet the live login provider. Existing user data is not copied, renamed, or removed. Moving authentication to `MSUser` later will require an explicit data migration and string-key compatibility work for sessions/Sanctum; it must not happen implicitly in this schema ticket.
+Laravel infrastructure table names remain standard. The follow-up access migration changes `sessions.user_id` to a string for `USNo`; the auth provider now uses `App\Models\Foundation\User`. Legacy `users` records remain untouched and are not silently copied into `MSUser`. Sanctum supports the stateful browser session; external token issuing remains a separate ticket. The new verified recovery flow uses `TRPasswordReset`. See [authentication-access.md](authentication-access.md).
 
 ## Migrate and seed
 

@@ -51,9 +51,9 @@ Initial flow:
 8. Once the mailbox is confirmed ready, the system sends activation instructions and the assigned company email address to the invitation email.
 9. The person opens the activation link and confirms their worker ID against the approved record.
 10. The person sets their own application password before accessing protected features.
-11. The person signs in using their company email address and application password.
+11. The person signs in using their Worker ID and application password.
 
-The invitation email is the person's existing contact address. The company email is their assigned work mailbox and their application login identifier.
+The invitation email is the person's original contact address. The company email is their assigned work mailbox. Worker ID is the application login identifier. Current recovery email initially matches the invitation email; verified replacements preserve the original and restricted old/new email history.
 
 ## 4. Company mailbox requirement
 
@@ -163,7 +163,7 @@ Approval, mailbox readiness, and application activation are different events. An
 
 ### Account access
 
-- Login with company email.
+- Login with Worker ID (or the administrator username).
 - Invitation acceptance.
 - Invitation expired, revoked, or already used.
 - Waiting for review.
@@ -247,7 +247,7 @@ Use a component showcase to inspect the shared elements together. Generated modu
 - Whether reactivation reuses the existing account and mailbox.
 - Deactivating the last active administrator.
 - Application deactivation versus disabling mailbox access: these require an explicit offboarding policy.
-- The password-reset destination after activation and the recovery path if the mailbox itself is inaccessible.
+- Application recovery uses Worker ID and current recovery email. Lost-address requests require PIC/administrator identity review, company-mailbox reset delivery, employee consent, and replacement-address verification. Provider mailbox recovery remains separate.
 
 Each agreed rule should later become an acceptance check or a business-rule test.
 
@@ -308,7 +308,11 @@ Before coding the account flow, decide:
 1. Which email provider/domain will host the real company mailboxes?
 2. Should the first version provision mailboxes automatically or track administrator provisioning?
 3. How will the first PIC be approved and activated?
-4. Will the app use its own password or the mailbox provider's sign-in?
-5. Where should recovery messages go after activation?
+4. How will secure first mailbox access and provider-specific mailbox recovery work? The application currently uses its own private password.
+5. When should provider single sign-on be reconsidered? Current application recovery follows the agreed verified-email/PIC flow.
 
 Once these are settled, turn the foundation into small user-problem tickets and start the page sketches.
+
+## 16. Accepted login and permission decisions — 16 November 2026
+
+Worker ID login, local-only admin/admin credentials, private administrator setup, verified recovery-email changes, PIC recovery review, and bounded group/individual module grants are implemented separately from the remaining onboarding/provider work. See [authentication-access.md](authentication-access.md) for the current rules, schema additions, setup commands, and tests.

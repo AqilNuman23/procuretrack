@@ -1,0 +1,1 @@
+@include('errors.foundation', ['code'=>'403', 'title'=>'This area is restricted.', 'description'=>'Your current role or assignments do not permit this action. Contact your administrator if you need access.'])

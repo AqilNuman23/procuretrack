@@ -145,6 +145,7 @@ class FoundationSeeder extends Seeder
         return $this->ensure(User::class, ['US_CONo' => $company->getKey(), 'USWorkerID' => $worker], [
             'US_TMNo' => $team?->getKey(), 'USName' => $name,
             'USContactEmail' => $email.'@personal.example', 'USEmail' => $assignedEmail ? $email.'@company.example' : null,
+            'USRecoveryEmail' => $email.'@personal.example', 'USApprovedAt' => $assignedEmail ? now()->subDays(2) : null,
             'USStatus' => $status, 'USPassword' => in_array($status, ['active', 'deactivated']) ? Str::password(32) : null,
             'USActivatedAt' => in_array($status, ['active', 'deactivated']) ? now()->subDays(2) : null,
             'USDeactivatedAt' => $status === 'deactivated' ? now()->subDay() : null,

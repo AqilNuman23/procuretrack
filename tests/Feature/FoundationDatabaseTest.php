@@ -181,14 +181,14 @@ class FoundationDatabaseTest extends TestCase
     public function test_foundation_migration_can_roll_back_without_removing_framework_tables(): void
     {
         $this->seed(FoundationSeeder::class);
-        $this->artisan('migrate:rollback', ['--step' => 1, '--force' => true])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 2, '--force' => true])->assertSuccessful();
         foreach (array_keys(config('foundation.models')) as $table) {
             $this->assertFalse(Schema::hasTable($table));
         }
         $this->assertTrue(Schema::hasTable('users'));
         $this->assertTrue(Schema::hasTable('sessions'));
         $this->artisan('migrate', ['--force' => true])->assertSuccessful();
-        $this->assertSame(17, DB::table('MSNumberSequence')->count());
+        $this->assertSame(count(config('foundation.models')), DB::table('MSNumberSequence')->count());
     }
 
     private function company(): Company
