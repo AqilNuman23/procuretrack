@@ -3,6 +3,8 @@
 use App\Http\Controllers\Foundation\AccessController;
 use App\Http\Controllers\Foundation\ActivityController;
 use App\Http\Controllers\Foundation\DepartmentController;
+use App\Http\Controllers\Foundation\DisplayPreferencesController;
+use App\Http\Controllers\Foundation\ImpersonationController;
 use App\Http\Controllers\Foundation\LoginController;
 use App\Http\Controllers\Foundation\OnboardingController;
 use App\Http\Controllers\Foundation\PeopleController;
@@ -15,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn () => redirect()->route(auth()->check() ? 'workspace' : 'login'));
 
 Route::middleware('account.headers')->group(function () {
+    Route::post('/display-preferences', [DisplayPreferencesController::class, 'update'])->name('display-preferences.update');
     Route::get('/invitation/{token}', [OnboardingController::class, 'openInvitation'])->where('token', '[A-Za-z0-9]{64}')->name('invitation.open');
     Route::post('/invitation', [OnboardingController::class, 'accept'])->middleware('throttle:foundation-onboarding')->name('invitation.accept');
     Route::get('/activation/{token}', [OnboardingController::class, 'openActivation'])->where('token', '[A-Za-z0-9]{64}')->name('activation.open');
@@ -32,6 +35,9 @@ Route::middleware('account.headers')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
 
     Route::middleware(['auth', 'foundation.active'])->group(function () {
+        Route::get('/switch-user/users', [ImpersonationController::class, 'users'])->name('impersonation.users');
+        Route::post('/switch-user', [ImpersonationController::class, 'start'])->middleware('throttle:20,1')->name('impersonation.start');
+        Route::post('/switch-user/stop', [ImpersonationController::class, 'stop'])->name('impersonation.stop');
         Route::get('/workspace', [WorkspaceController::class, 'index'])->name('workspace');
         Route::get('/components', function (Request $request, ModuleAccess $access) {
             abort_unless($access->administrator($request->user()), 403);

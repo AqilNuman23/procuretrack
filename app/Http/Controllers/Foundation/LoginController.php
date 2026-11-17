@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Foundation;
 use App\Http\Controllers\Controller;
 use App\Models\Foundation\User;
 use App\Services\Access\ModuleAccess;
+use App\Services\Impersonation;
 use App\Services\RecoveryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,6 +39,9 @@ class LoginController extends Controller
 
     public function destroy(Request $request)
     {
+        if ($request->session()->has('impersonation') && ($admin = app(Impersonation::class)->administrator($request))) {
+            app(Impersonation::class)->record($admin, $request->user(), 'logged_out');
+        }
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

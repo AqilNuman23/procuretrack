@@ -86,9 +86,13 @@ class FoundationChanges
 
     private function audit(FoundationModel $record, string $operation, ?array $before): void
     {
+        $after = $this->snapshot($record);
+        if (app()->bound('request') && request()->hasSession() && request()->session()->has('impersonation')) {
+            $after['_impersonator'] = request()->session()->get('impersonation.administrator');
+        }
         $log = new FoundationLog([
             'FLAction' => $operation, 'FLTable' => $record->getTable(), 'FLRecordNo' => $record->getKey(),
-            'FLBefore' => $before, 'FLAfter' => $this->snapshot($record),
+            'FLBefore' => $before, 'FLAfter' => $after,
         ]);
         $log->FLCB = $this->actor?->getKey();
         $log->FLMB = $this->actor?->getKey();

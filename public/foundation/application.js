@@ -1,4 +1,6 @@
 (() => {
+    const messages = JSON.parse(document.querySelector('#ui-messages')?.textContent || '{}');
+    const t = text => messages[text] || text;
     const drawer = document.querySelector('.sidebar');
     const toggle = document.querySelector('[data-drawer-open]');
     const backdrop = document.querySelector('.drawer-backdrop');
@@ -30,8 +32,8 @@
     document.addEventListener('click', event => { const menu = document.querySelector('.account-menu'); if (menu && !menu.contains(event.target)) menu.removeAttribute('open'); });
     document.querySelectorAll('.password-toggle').forEach(button => button.addEventListener('click', () => {
         const input = button.previousElementSibling; const showing = input.type === 'password';
-        input.type = showing ? 'text' : 'password'; button.textContent = showing ? 'Hide' : 'Show';
-        button.setAttribute('aria-label', showing ? 'Hide password' : 'Show password'); button.setAttribute('aria-pressed', String(showing));
+        input.type = showing ? 'text' : 'password'; button.textContent = showing ? t('Hide') : t('Show');
+        button.setAttribute('aria-label', showing ? t('Hide password') : t('Show password')); button.setAttribute('aria-pressed', String(showing));
     }));
     document.querySelectorAll('form[data-confirm]').forEach(form => form.addEventListener('submit', event => { if (!confirm(form.dataset.confirm)) event.preventDefault(); }));
     document.querySelectorAll('form').forEach(form => form.addEventListener('submit', event => {
@@ -41,9 +43,48 @@
         form.setAttribute('aria-busy', 'true');
         // Keep the submitter enabled so its name/value is included in the request.
         form.querySelectorAll('button[type="submit"],button:not([type])').forEach(button => button.setAttribute('aria-disabled', 'true'));
-        const message = document.createElement('p'); message.setAttribute('role', 'status'); message.textContent = 'Saving, please wait…'; form.append(message);
+        const message = document.createElement('p'); message.setAttribute('role', 'status'); message.textContent = t('Saving, please wait…'); form.append(message);
     }));
     window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
+    const switchDialog = document.querySelector('#switch-user-dialog');
+    if (switchDialog) {
+        const open = document.querySelector('[data-switch-open]');
+        const search = switchDialog.querySelector('[data-switch-search]');
+        const users = switchDialog.querySelector('[data-switch-users]');
+        const state = switchDialog.querySelector('[data-switch-state]');
+        const submit = switchDialog.querySelector('[data-switch-submit]');
+        const retry = switchDialog.querySelector('[data-switch-retry]');
+        let pending;
+        const load = async () => {
+            pending?.abort();
+            const controller = new AbortController(); pending = controller;
+            users.replaceChildren(); submit.disabled = true; retry.hidden = true;
+            state.textContent = t('Loading users…'); users.setAttribute('aria-busy', 'true');
+            try {
+                const url = new URL(switchDialog.dataset.usersUrl, location.origin);
+                url.searchParams.set('search', search.elements.search.value);
+                const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
+                if (!response.ok) throw new Error('Request failed');
+                const data = await response.json();
+                for (const user of data.users) {
+                    const option = document.createElement('option'); option.value = user.id;
+                    option.textContent = `${user.name} · ${user.worker_id}${user.team ? ' · ' + user.team : ''}`;
+                    users.append(option);
+                }
+                users.selectedIndex = -1;
+                state.textContent = data.users.length ? t('Select a person to continue.') : t('No active accounts match. Try another search.');
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+                state.textContent = t('Could not load users. Retry or refresh if your session has expired.'); retry.hidden = false;
+            } finally { if (pending === controller) users.removeAttribute('aria-busy'); }
+        };
+        open.addEventListener('click', () => { switchDialog.showModal(); search.elements.search.focus(); load(); });
+        switchDialog.querySelectorAll('[data-switch-close]').forEach(button => button.addEventListener('click', () => switchDialog.close()));
+        switchDialog.addEventListener('close', () => { pending?.abort(); open.focus(); });
+        search.addEventListener('submit', event => { event.preventDefault(); load(); });
+        retry.addEventListener('click', load);
+        users.addEventListener('change', () => { submit.disabled = !users.value; });
+    }
     const rows = document.querySelector('[data-group-rows]');
     if (rows) {
         const template = rows.firstElementChild.cloneNode(true); let counter = 1;
