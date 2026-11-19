@@ -7,6 +7,7 @@ use App\Models\Foundation\Team;
 use App\Models\Foundation\User;
 use App\Services\Access\ModuleAccess;
 use App\Services\PeopleAdministration;
+use App\Support\Foundation\TableQuery;
 use Illuminate\Http\Request;
 
 class PeopleController extends Controller
@@ -14,10 +15,12 @@ class PeopleController extends Controller
     public function index(Request $request, ModuleAccess $access)
     {
         abort_unless($access->administrator($request->user()), 403);
-        $filters = $request->validate(['search' => ['nullable', 'string', 'max:150']]);
-        $teams = Team::query()->where('TM_CONo', $request->user()->US_CONo)
-            ->when($filters['search'] ?? null, fn ($q, $value) => $q->where(fn ($q) => $q->where('TMName', 'like', '%'.$value.'%')->orWhere('TMCode', 'like', '%'.$value.'%')))
-            ->with(['picAssignment.user'])->withCount('members')->orderBy('TMName')->paginate(15)->withQueryString();
+        $table = new TableQuery($request);
+        $status = $table->value('status', ['active', 'inactive']);
+        $query = Team::query()->where('TM_CONo', $request->user()->US_CONo)
+            ->when($status !== '', fn ($q) => $q->where('TMActive', $status === 'active'))
+            ->with(['picAssignment.user'])->withCount('members')->orderBy('TMName')->orderBy('TMNo');
+        $teams = $table->paginate($table->search($query, ['TMName', 'TMCode'], ['picAssignment.user' => ['USName', 'USWorkerID']]));
 
         return view('foundation.teams', ['title' => 'Teams', 'description' => 'Manage teams and assign an active member as PIC.', 'teams' => $teams]);
     }

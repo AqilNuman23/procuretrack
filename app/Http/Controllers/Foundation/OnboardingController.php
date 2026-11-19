@@ -9,6 +9,7 @@ use App\Models\Foundation\Team;
 use App\Models\Foundation\User;
 use App\Services\Access\ModuleAccess;
 use App\Services\OnboardingService;
+use App\Support\Foundation\TableQuery;
 use Illuminate\Http\Request;
 
 class OnboardingController extends Controller
@@ -17,9 +18,13 @@ class OnboardingController extends Controller
     {
         $actor = $request->user();
         abort_unless($access->administrator($actor) || $access->pic($actor), 403);
-        $filters = $request->validate(['status' => ['nullable', 'in:invited,awaiting_review,approved,rejected,expired,revoked']]);
+        $filters = $request->validate(['search' => ['nullable', 'string', 'max:150'], 'status' => ['nullable', 'in:invited,awaiting_review,approved,rejected,expired,revoked']]);
         $query = Invitation::query()->whereHas('team', fn ($q) => $q->where('TM_CONo', $actor->US_CONo))
-            ->when(! $access->administrator($actor), fn ($q) => $q->where('IV_TMNo', $actor->US_TMNo));
+            ->when(! $access->administrator($actor), fn ($q) => $q->where('IV_TMNo', $actor->US_TMNo))
+            ->when(isset($filters['search']), fn ($q) => $q->where(fn ($q) => $q
+                ->where('IVName', 'like', '%'.$filters['search'].'%')
+                ->orWhere('IVWorkerID', 'like', '%'.$filters['search'].'%')
+                ->orWhere('IVEmail', 'like', '%'.$filters['search'].'%')));
         if (($filters['status'] ?? null) === 'expired') {
             $query->where(fn ($q) => $q->where('IVStatus', 'expired')->orWhere(fn ($q) => $q->where('IVStatus', 'invited')->where('IVExpiresAt', '<=', now())));
         } elseif ($filters['status'] ?? null) {
@@ -29,7 +34,7 @@ class OnboardingController extends Controller
             ->when(! $access->administrator($actor), fn ($q) => $q->whereKey($actor->US_TMNo))->orderBy('TMName')->get();
 
         return view('foundation.invitations', ['title' => 'Invitations & reviews', 'description' => 'Invite members and follow their account setup.',
-            'invitations' => $query->with('team')->orderByDesc('IVCD')->paginate(15)->withQueryString(), 'teams' => $teams]);
+            'invitations' => (new TableQuery($request))->paginate($query->with('team')->orderByDesc('IVCD')->orderByDesc('IVNo')), 'teams' => $teams]);
     }
 
     public function store(Request $request, OnboardingService $onboarding)
@@ -55,8 +60,15 @@ class OnboardingController extends Controller
     {
         abort_unless($access->administrator($request->user()), 403);
 
+        $table = new TableQuery($request);
+        $status = $table->value('status', ['not_started', 'pending', 'ready', 'failed']);
+        $query = Mailbox::query()
+            ->whereHas('user', fn ($q) => $q->where('US_CONo', $request->user()->US_CONo))
+            ->when($status !== '', fn ($q) => $q->where('MXStatus', $status))
+            ->with('user')->orderByDesc('MXCD')->orderByDesc('MXNo');
+
         return view('foundation.mailboxes', ['title' => 'Mailbox readiness', 'description' => 'Verify an existing real mailbox before issuing activation instructions.',
-            'mailboxes' => Mailbox::query()->whereHas('user', fn ($q) => $q->where('US_CONo', $request->user()->US_CONo))->with('user')->orderByDesc('MXCD')->paginate(15)]);
+            'mailboxes' => $table->paginate($table->search($query, ['MXEmail'], ['user' => ['USName', 'USWorkerID']]))]);
     }
 
     public function mailbox(Request $request, User $user, OnboardingService $onboarding)

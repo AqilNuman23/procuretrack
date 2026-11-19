@@ -8,6 +8,7 @@ use App\Models\Foundation\Module;
 use App\Models\Foundation\User;
 use App\Services\Access\ModuleAccess;
 use App\Support\Foundation\FoundationWriter;
+use App\Support\Foundation\TableQuery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -26,11 +27,11 @@ class DepartmentController extends Controller
         Gate::authorize('view', $module);
         $filters = $request->validate(['search' => ['nullable', 'string', 'max:150'], 'status' => ['nullable', 'in:active,inactive'], 'sort' => ['nullable', 'in:code,name'], 'direction' => ['nullable', 'in:asc,desc']]);
         $records = Department::query()->where('DP_CONo', $request->user()->US_CONo)
-            ->when($filters['search'] ?? null, fn ($q, $value) => $q->where(fn ($q) => $q->where('DPCode', 'like', '%'.$value.'%')->orWhere('DPName', 'like', '%'.$value.'%')))
+            ->when(isset($filters['search']), fn ($q) => $q->where(fn ($q) => $q->where('DPCode', 'like', '%'.$filters['search'].'%')->orWhere('DPName', 'like', '%'.$filters['search'].'%')))
             ->when($filters['status'] ?? null, fn ($q, $value) => $q->where('DPActive', $value === 'active'))
-            ->orderBy(($filters['sort'] ?? 'name') === 'code' ? 'DPCode' : 'DPName', $filters['direction'] ?? 'asc')->orderBy('DPNo')->paginate(15)->withQueryString();
+            ->orderBy(($filters['sort'] ?? 'name') === 'code' ? 'DPCode' : 'DPName', $filters['direction'] ?? 'asc')->orderBy('DPNo');
 
-        return view('foundation.departments', ['title' => 'Departments', 'description' => 'Company reference data, independent of team membership.', 'currentModule' => $module, 'records' => $records]);
+        return view('foundation.departments', ['title' => 'Departments', 'description' => 'Company reference data, independent of team membership.', 'currentModule' => $module, 'records' => (new TableQuery($request))->paginate($records)]);
     }
 
     public function show(Request $request, Department $department)

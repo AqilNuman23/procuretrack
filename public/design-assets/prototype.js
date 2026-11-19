@@ -68,7 +68,7 @@
             error.textContent = 'The passwords do not match. Check both fields and try again.';
             error.hidden = false;
             confirmation.setAttribute('aria-invalid', 'true');
-            confirmation.focus();
+            window.showFormErrors([error.textContent], confirmation);
             return;
         }
         error.hidden = true;
@@ -107,16 +107,36 @@
         const count = table.querySelector('[data-result-count]');
         const prev = table.querySelector('[data-prev]');
         const next = table.querySelector('[data-next]');
+        const filterForm = table.querySelector('[data-preview-filters]');
+        const filterDialog = filterForm.closest('dialog');
+        let appliedFilter = filter.value;
+        let appliedState = state?.value ?? 'success';
+        table.querySelector('[data-preview-filters-open]').addEventListener('click', () => {
+            filter.value = appliedFilter;
+            filter.dispatchEvent(new Event('select-refresh'));
+            if (state) {
+                state.value = appliedState;
+                state.dispatchEvent(new Event('select-refresh'));
+            }
+            filterDialog.showModal();
+        });
+        filterDialog.querySelector('[data-preview-filters-close]').addEventListener('click', () => filterDialog.close());
+        filterForm.addEventListener('submit', () => {
+            appliedFilter = filter.value;
+            appliedState = state?.value ?? 'success';
+            page = 1;
+            render();
+        });
         let page = 1, sortColumn = -1, descending = false;
         const render = () => {
-            const result = rows.filter(row => row.textContent.toLowerCase().includes(search.value.toLowerCase().trim()) && (!filter.value || row.dataset.status === filter.value));
+            const result = rows.filter(row => row.textContent.toLowerCase().includes(search.value.toLowerCase().trim()) && (!appliedFilter || row.dataset.filterValue === appliedFilter));
             if (sortColumn >= 0) result.sort((a, b) => a.cells[sortColumn].textContent.trim().localeCompare(b.cells[sortColumn].textContent.trim(), undefined, { numeric: true }) * (descending ? -1 : 1));
             const pages = Math.max(1, Math.ceil(result.length / Number(size.value)));
             page = Math.min(page, pages);
             rows.forEach(row => { row.hidden = true; });
             const showing = result.slice((page - 1) * size.value, page * size.value);
             showing.forEach(row => { row.hidden = false; tbody.append(row); });
-            const visible = state.value === 'success' && result.length > 0;
+            const visible = appliedState === 'success' && result.length > 0;
             content.hidden = !visible;
             message.hidden = visible;
             if (!visible) {
@@ -126,24 +146,24 @@
                     empty: ['Nothing here yet.', 'Records will appear here once they are available.'],
                     success: ['No matching records.', 'Try another search or clear the filters.'],
                 };
-                const [title, description] = states[state.value];
+                const [title, description] = states[appliedState];
                 message.replaceChildren();
                 const heading = document.createElement('h3'); heading.textContent = title;
                 const copy = document.createElement('p'); copy.textContent = description;
                 message.append(heading, copy);
-                if (['error', 'success'].includes(state.value)) {
+                if (['error', 'success'].includes(appliedState)) {
                     const reset = document.createElement('button'); reset.className = 'button secondary'; reset.type = 'button';
-                    reset.textContent = state.value === 'error' ? 'Try again · preview' : 'Clear filters';
-                    reset.addEventListener('click', () => { state.value = 'success'; search.value = ''; filter.value = ''; render(); });
+                    reset.textContent = appliedState === 'error' ? 'Try again · preview' : 'Clear filters';
+                    reset.addEventListener('click', () => { appliedState = 'success'; search.value = ''; appliedFilter = ''; page = 1; render(); });
                     message.append(reset);
                 }
             }
-            count.textContent = visible ? `Showing ${(page - 1) * size.value + 1}–${Math.min(page * size.value, result.length)} of ${result.length} records` : (state.value === 'loading' || state.value === 'error' ? 'Records unavailable' : '0 records shown');
+            count.textContent = visible ? `Showing ${(page - 1) * size.value + 1}–${Math.min(page * size.value, result.length)} of ${result.length} records` : (appliedState === 'loading' || appliedState === 'error' ? 'Records unavailable' : '0 records shown');
             table.querySelector('[data-page-number]').textContent = `${page} / ${visible ? pages : 1}`;
             prev.disabled = !visible || page <= 1;
             next.disabled = !visible || page >= pages;
         };
-        [search, filter, state, size].forEach(control => control.addEventListener(control === search ? 'input' : 'change', () => { page = 1; render(); }));
+        [search, size].forEach(control => control.addEventListener(control === search ? 'input' : 'change', () => { page = 1; render(); }));
         prev.addEventListener('click', () => { page--; render(); });
         next.addEventListener('click', () => { page++; render(); });
         table.querySelectorAll('[data-sort]').forEach(button => button.addEventListener('click', () => {

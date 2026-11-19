@@ -23,7 +23,7 @@ The root URL redirects to sign-in or the protected workspace. The application us
 
 The migration and local seeders have been run successfully as part of this implementation. Do not use `migrate:fresh` against application data you want to keep. The new migration adds 10 access/recovery tables, extends `MSUser`, and changes the standard `sessions.user_id` field to a string so it can store `USNo`.
 
-The first local access seed assigns the existing fictional administrator the username **admin** and password **admin**, marked `USLocalDemo=true`. This account is accepted only when `APP_ENV=local`. Seed reruns do not reset a chosen password. All other employee passwords remain private/random until reset; there is no shared employee default.
+For local setup, the seeded administrator uses Worker ID **PT-1000**. Set a private password through the console before the first sign-in. Seed reruns preserve the chosen password.
 
 To choose a private password through controlled console access:
 
@@ -48,7 +48,7 @@ The addresses above are placeholders. An authorized operator must first verify o
 
 ## Login and sessions
 
-- Employees sign in with Worker ID and application password. The administrator may use the `admin` username.
+- Employees sign in with Worker ID and application password. The administrator can sign in with their Worker ID.
 - The initial application is scoped to the company identified by `FOUNDATION_COMPANY_CODE` (default `DEMO` locally). No public company selection or signup was added.
 - Laravel's web auth provider now uses `App\Models\Foundation\User` / `MSUser`. Existing legacy `users` records are preserved, not silently imported. Old numeric-user sessions cannot authenticate as a prefixed foundation user.
 - Access requires `active` account status, recorded approval, completed activation, a password, and a ready mailbox. Mock mailboxes count as ready only in local/testing environments.
@@ -161,3 +161,23 @@ Local walkthrough:
 6. Revoke Farid's authority as administrator. Lina's derived access must stop on the next request.
 
 The original invitation creation, application-review/activation workflows, procurement workflows, and live provider provisioning remain separate tickets. The current work uses already seeded/approved accounts and implements application login, recovery, and access management.
+
+## Administrator user switching — 17 November 2026
+
+The top-right **Switch user** button opens a searchable user-selection dialog. Only an eligible administrator can initiate switching. The list and switch endpoint enforce same-company scope and full account readiness; ordinary users cannot access either endpoint directly. Search returns at most 50 matching active accounts and exposes only display name, Worker ID, team name, and account reference.
+
+Switching uses the selected account's actual permissions, not administrator permissions. A persistent banner identifies the account and provides **Return to administrator**. The original administrator can select another user directly without a nested impersonation chain. Changes affect real records. Password changes through My account are blocked while switched.
+
+The original administrator reference and authentication version live only in the server session. Both identities are revalidated on protected requests. Losing the administrator's role/readiness or changing their authentication version invalidates the session. If the selected account becomes unavailable or its authentication version changes, the application restores the still-valid administrator and rejects the interrupted request. Switching and returning rotate the session identifier and CSRF token. Logout ends the entire session.
+
+Start, return, automatic account-change return, and explicit logout events are stored in foundation history with the original administrator and selected user. Successful business-write audit snapshots during impersonation also contain `_impersonator`, while retaining the selected user as the acting account. No password or token is stored in switch history. No schema change is required.
+
+The dialog uses native modal focus handling, Escape dismissal, close/cancel controls, and distinct loading/empty/error states with retry. Manual browser visual and keyboard review is still recommended.
+
+## Theme and language — 17 November 2026
+
+The live header and sign-in screens include light/dark and ENG/BM toggles. Defaults remain English and dark. The choices are saved for one year in encrypted, HttpOnly browser cookies and survive logout and account switching. They are browser preferences rather than changes to an employee's profile. A POST with CSRF protection updates the allowlisted choices and returns to the current local page.
+
+`DisplayPreferences` applies the locale and theme before rendering. Shared navigation, module labels, live foundation forms/help, validation, pagination, and modal feedback use Laravel translations in `lang/ms.json` and `lang/ms/`. English phrases serve as fallback translation keys. User-entered names, team names, document contents, record identifiers, stored statuses, permission keys, and audit payloads are not translated or rewritten. Account emails keep their existing language; this change concerns the website display.
+
+`public/foundation/themes.css` provides the live application's light palette, including forms, tables, status badges, menus, and the switch-user dialog. The theme is rendered on the HTML element before styles load, avoiding a JavaScript-dependent theme flash. The fictional `/design` gallery and separate Vue status demo retain their existing presentation.

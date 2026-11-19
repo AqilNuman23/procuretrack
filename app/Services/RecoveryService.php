@@ -12,6 +12,7 @@ use App\Rules\ApplicationPassword;
 use App\Services\Access\ModuleAccess;
 use App\Support\Foundation\FoundationChanges;
 use App\Support\Foundation\FoundationWriter;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -76,6 +77,28 @@ class RecoveryService
         foreach (($pics->isNotEmpty() ? $pics : $reviewers) as $reviewer) {
             $this->mailer->send($reviewer->USEmail, new AccountMail('review', $this->mailer->url('recovery.index')));
         }
+    }
+
+    public function reviewableRequests(User $reviewer): Builder
+    {
+        $query = RecoveryRequest::query()->whereHas('user', fn (Builder $users) => $users
+            ->where('US_CONo', $reviewer->US_CONo)->where('USNo', '!=', $reviewer->getKey()));
+
+        if (! $this->access->eligible($reviewer)) {
+            return $query->whereRaw('1 = 0');
+        }
+        if ($this->access->administrator($reviewer)) {
+            return $query;
+        }
+        if (! $this->access->pic($reviewer)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('user', fn (Builder $users) => $users->where('US_TMNo', $reviewer->US_TMNo)
+            ->whereDoesntHave('roleAssignments.role', fn (Builder $roles) => $roles->where('RLCode', 'administrator'))
+            ->whereNot(fn (Builder $pics) => $pics
+                ->whereHas('picAssignments', fn (Builder $assignments) => $assignments->where('TP_TMNo', $reviewer->US_TMNo))
+                ->whereHas('roleAssignments.role', fn (Builder $roles) => $roles->where('RLCode', 'team_pic'))));
     }
 
     public function canReview(User $reviewer, User $target): bool

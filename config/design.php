@@ -109,7 +109,7 @@ return [
         'forbidden' => $page('This area is restricted.', null, 'status', 'Your role does not have permission to open this page. Contact an administrator if you need access.'),
         'not-found' => $page('A little off the map.', null, 'status', 'We couldn’t find that page. Your workspace is a good place to start again.'),
         'unavailable' => $page('We’ll be right back.', null, 'status', 'The service is temporarily unavailable. Please try again shortly.'),
-        'unexpected-error' => $page('Something went wrong.', null, 'status', 'We couldn’t complete that request. Try again or contact your administrator.'),
+        'unexpected-error' => $page('Something went wrong.', null, 'status', 'This preview shows what users see when a page fails to load.'),
         'pages' => $page('Every screen, one place.', null, 'gallery', 'Explore the foundation designs, including account setup and uncommon states.'),
     ],
 ];

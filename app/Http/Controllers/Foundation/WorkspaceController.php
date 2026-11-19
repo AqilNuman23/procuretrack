@@ -10,6 +10,7 @@ use App\Rules\ApplicationPassword;
 use App\Services\Access\ModuleAccess;
 use App\Services\AccountMailer;
 use App\Support\Foundation\FoundationWriter;
+use App\Support\Foundation\TableQuery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -53,10 +54,10 @@ class WorkspaceController extends Controller
             return redirect()->route('activity.index');
         }
         $filters = $request->validate(['search' => ['nullable', 'string', 'max:150'], 'status' => ['nullable', 'in:active,deactivated,pending_activation']]);
-        $users = $module->MOCode === 'people.users' ? $access->visibleUsers($request->user())->with('team')
-            ->when($filters['search'] ?? null, fn ($q, $value) => $q->where(fn ($q) => $q->where('USName', 'like', '%'.$value.'%')->orWhere('USWorkerID', 'like', '%'.$value.'%')))
+        $users = $module->MOCode === 'people.users' ? (new TableQuery($request))->paginate($access->visibleUsers($request->user())->with('team')
+            ->when(isset($filters['search']), fn ($q) => $q->where(fn ($q) => $q->where('USName', 'like', '%'.$filters['search'].'%')->orWhere('USWorkerID', 'like', '%'.$filters['search'].'%')))
             ->when($filters['status'] ?? null, fn ($q, $value) => $q->where('USStatus', $value))
-            ->orderBy('USName')->paginate(15)->withQueryString() : null;
+            ->orderBy('USName')->orderBy('USNo')) : null;
         $children = $module->children()->where('MOActive', true)->get()->filter(fn ($child) => $access->can($request->user(), $child));
 
         return view('foundation.module', ['title' => $module->MOName, 'description' => config('modules')[$module->MOCode]['description'] ?? '', 'currentModule' => $module, 'children' => $children, 'users' => $users]);

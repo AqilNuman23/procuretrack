@@ -100,6 +100,23 @@ class AccountAccessTest extends TestCase
         $this->get('/workspace')->assertRedirect('/login');
     }
 
+    public function test_ticket_starter_pages_follow_existing_module_grants(): void
+    {
+        $requests = $this->module('procurement.requests');
+        $worker = $this->person('PT-1043');
+
+        $this->signIn('PT-1043');
+        $this->get('/modules/procurement')->assertForbidden();
+        $this->get('/modules/procurement.requests')->assertForbidden();
+
+        $this->manager->direct($this->person('PT-1000'), [$worker->getKey()], $requests, 'edit');
+
+        $this->get('/modules/procurement')->assertOk()->assertSee('Purchase requests');
+        $this->get('/modules/procurement.requests')->assertOk()->assertSee('PT-006');
+        $this->assertTrue($this->access->can($worker, $requests, 'edit'));
+        $this->get('/modules/procurement.approvals')->assertForbidden();
+    }
+
     public function test_local_admin_credentials_are_blocked_outside_local_and_private_password_setup_disables_them(): void
     {
         // Switching the environment also switches Laravel's test-only CSRF bypass.
@@ -582,6 +599,32 @@ class AccountAccessTest extends TestCase
         $this->post('/departments', ['code' => 'DENIED', 'name' => 'Denied', 'active' => 1])->assertForbidden();
     }
 
+    public function test_table_pagination_preserves_search_and_filter_and_bounds_page_size(): void
+    {
+        $admin = $this->person('PT-1000');
+        foreach (range(1, 12) as $index) {
+            $this->writer->create(Department::class, [
+                'DP_CONo' => $admin->US_CONo,
+                'DPCode' => sprintf('PAGE-%02d', $index),
+                'DPName' => sprintf('Pagination department %02d', $index),
+                'DPActive' => true,
+            ]);
+        }
+
+        $this->signIn('PT-1000');
+        $first = $this->get('/departments?search=Pagination&status=active')->assertOk()->viewData('records');
+        $this->assertCount(10, $first);
+        $this->assertTrue($first->hasMorePages());
+        $this->assertStringContainsString('search=Pagination', $first->nextPageUrl());
+        $this->assertStringContainsString('status=active', $first->nextPageUrl());
+        $this->assertCount(2, $this->get($first->nextPageUrl())->assertOk()->viewData('records'));
+
+        $expanded = $this->get('/departments?search=Pagination&per_page=100')->assertOk()->viewData('records');
+        $this->assertSame(100, $expanded->perPage());
+        $this->assertCount(12, $expanded);
+        $this->assertSame(10, $this->get('/departments?per_page=101')->assertOk()->viewData('records')->perPage());
+    }
+
     public function test_transfer_revokes_derived_grants_and_old_sessions_without_removing_independent_access(): void
     {
         $admin = $this->person('PT-1000');
@@ -636,6 +679,103 @@ class AccountAccessTest extends TestCase
         $this->get('/components')->assertForbidden();
         $this->signIn('PT-1000');
         $this->get('/components')->assertOk()->assertSee('Loading records')->assertSee('Records could not be loaded');
+    }
+
+    public function test_administrator_can_switch_search_and_return_using_the_selected_users_permissions(): void
+    {
+        $admin = $this->person('PT-1000');
+        $worker = $this->person('PT-1043');
+        $this->signIn('PT-1000');
+        $this->get('/workspace')->assertOk()->assertSee('Switch user');
+        $this->getJson('/switch-user/users?search=PT-1043')->assertOk()->assertJsonPath('users.0.id', $worker->USNo)->assertJsonMissingPath('users.0.USRecoveryEmail');
+        $this->post('/switch-user', ['user' => $worker->USNo])->assertRedirect('/workspace')->assertSessionHas('impersonation.administrator', $admin->USNo);
+        $this->getJson('/api/v1/me')->assertOk()->assertJsonPath('no', $worker->USNo);
+        $this->get('/workspace')->assertOk()->assertSee('Return to administrator')->assertSee('Acting as');
+        $this->get('/access')->assertForbidden();
+        $this->post('/my-account/password', ['current_password' => self::PASSWORD, 'password' => self::PASSWORD, 'password_confirmation' => self::PASSWORD])->assertForbidden();
+        $this->post('/switch-user/stop')->assertRedirect('/workspace')->assertSessionMissing('impersonation');
+        $this->getJson('/api/v1/me')->assertOk()->assertJsonPath('no', $admin->USNo);
+        $this->assertSame(2, FoundationLog::query()->where('FLRecordNo', $worker->USNo)->get()->filter(fn ($log) => isset($log->FLAfter['_impersonation']))->count());
+    }
+
+    public function test_switching_rejects_non_admin_inactive_and_cross_company_accounts(): void
+    {
+        $worker = $this->person('PT-1043');
+        $this->signIn('PT-1043');
+        $this->get('/workspace')->assertOk()->assertDontSee('Switch user');
+        $this->getJson('/switch-user/users')->assertForbidden();
+        $this->post('/switch-user', ['user' => $this->person('PT-1000')->USNo])->assertForbidden();
+        $this->post('/switch-user/stop')->assertForbidden();
+        $this->signIn('PT-1000');
+        $this->writer->update($worker, ['USStatus' => 'deactivated']);
+        $this->post('/switch-user', ['user' => $worker->USNo])->assertForbidden();
+        $company = $this->writer->create(Company::class, ['COCode' => 'OTHER', 'COName' => 'Other company']);
+        $outsider = $this->writer->create(User::class, ['US_CONo' => $company->CONo, 'USName' => 'Outsider', 'USWorkerID' => 'OTHER-1', 'USContactEmail' => 'other@example.test']);
+        $this->post('/switch-user', ['user' => $outsider->USNo])->assertForbidden();
+        $this->getJson('/switch-user/users?search=PT-1043')->assertOk()->assertExactJson(['users' => []]);
+    }
+
+    public function test_switching_preserves_original_admin_and_attributes_business_writes(): void
+    {
+        $admin = $this->person('PT-1000');
+        $worker = $this->person('PT-1043');
+        $this->manager->direct($admin, [$worker->USNo], $this->module('settings.company'), 'edit');
+        $this->signIn('PT-1000');
+        $this->post('/switch-user', ['user' => $this->person('PT-1011')->USNo])->assertRedirect();
+        $this->post('/switch-user', ['user' => $worker->USNo])->assertRedirect()->assertSessionHas('impersonation.administrator', $admin->USNo);
+        $this->post('/company', ['name' => 'Changed while switched'])->assertRedirect();
+        $log = FoundationLog::query()->where('FLTable', 'MSCompany')->orderByDesc('FLID')->firstOrFail();
+        $this->assertSame($worker->USNo, $log->FLCB);
+        $this->assertSame($admin->USNo, $log->FLAfter['_impersonator']);
+        $this->post('/switch-user/stop')->assertRedirect();
+        $this->getJson('/api/v1/me')->assertJsonPath('no', $admin->USNo);
+    }
+
+    public function test_switching_ends_on_origin_revocation_and_restores_admin_if_target_changes(): void
+    {
+        $admin = $this->person('PT-1000');
+        $worker = $this->person('PT-1043');
+        $this->signIn('PT-1000');
+        $this->post('/switch-user', ['user' => $worker->USNo])->assertRedirect();
+        $this->writer->update($worker, ['USStatus' => 'deactivated']);
+        $this->get('/workspace')->assertRedirect('/workspace')->assertSessionMissing('impersonation');
+        $this->getJson('/api/v1/me')->assertJsonPath('no', $admin->USNo);
+        $this->writer->update($worker->fresh(), ['USStatus' => 'active']);
+        $this->post('/switch-user', ['user' => $worker->USNo])->assertRedirect();
+        $this->writer->update($admin, ['USAuthVersion' => $admin->USAuthVersion + 1]);
+        $this->getJson('/api/v1/me')->assertUnauthorized();
+        $this->get('/workspace')->assertRedirect('/login');
+    }
+
+    public function test_switching_logout_discards_admin_restore_and_rejects_unready_targets(): void
+    {
+        $worker = $this->person('PT-1043');
+        $this->signIn('PT-1000');
+        $this->writer->update($worker->mailbox, ['MXStatus' => 'failed']);
+        $this->getJson('/switch-user/users?search=PT-1043')->assertExactJson(['users' => []]);
+        $this->post('/switch-user', ['user' => $worker->USNo])->assertForbidden();
+        $this->writer->update($worker->mailbox->fresh(), ['MXStatus' => 'ready']);
+        $this->post('/switch-user', ['user' => $worker->USNo])->assertRedirect();
+        $this->post('/logout')->assertRedirect('/login')->assertSessionMissing('impersonation');
+        $this->post('/switch-user/stop')->assertRedirect('/login');
+        $this->getJson('/api/v1/me')->assertUnauthorized();
+        $log = FoundationLog::query()->orderByDesc('FLID')->firstOrFail();
+        $this->assertSame('logged_out', $log->FLAfter['_impersonation']);
+    }
+
+    public function test_malay_and_light_preferences_render_all_live_admin_pages(): void
+    {
+        $this->signIn('PT-1000');
+        $this->withCookie('locale', 'ms')->withCookie('theme', 'light');
+        foreach (['/workspace', '/teams', '/invitations', '/mailboxes', '/departments', '/components', '/access', '/activity', '/my-account', '/modules/people.users', '/recovery-requests'] as $path) {
+            $this->get($path)->assertOk()->assertSee('lang="ms"', false)->assertSee('data-theme="light"', false);
+        }
+        $this->get('/workspace')->assertSee('Pengguna &amp; Pasukan', false)->assertSee('Tetapan')->assertSee('Semua modul')->assertSee('Tukar pengguna');
+        $this->get('/departments')->assertSee('Jabatan')->assertSee('Cipta jabatan');
+        $this->get(route('teams.show', $this->person('PT-1011')->team))->assertOk()->assertSee('PIC semasa:');
+        $this->get(route('users.show', $this->person('PT-1043')))->assertOk()->assertSee('Urus akaun');
+        $this->get(route('departments.show', Department::query()->firstOrFail()))->assertOk()->assertSee('Sunting jabatan');
+
     }
 
     private function person(string $worker): User
