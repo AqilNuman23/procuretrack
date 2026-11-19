@@ -3,6 +3,7 @@
 use App\Http\Middleware\AccountResponseHeaders;
 use App\Http\Middleware\ActiveFoundationAccount;
 use App\Http\Middleware\DisplayPreferences;
+use App\Http\Middleware\FormSubmissionResponse;
 use App\Http\Middleware\ModulePermission;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [DisplayPreferences::class]);
+        $middleware->web(append: [DisplayPreferences::class, FormSubmissionResponse::class]);
         $middleware->statefulApi();
         $middleware->redirectGuestsTo(fn () => route('login'));
         $middleware->redirectUsersTo(fn () => route('workspace'));

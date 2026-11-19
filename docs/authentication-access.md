@@ -23,7 +23,7 @@ The root URL redirects to sign-in or the protected workspace. The application us
 
 The migration and local seeders have been run successfully as part of this implementation. Do not use `migrate:fresh` against application data you want to keep. The new migration adds 10 access/recovery tables, extends `MSUser`, and changes the standard `sessions.user_id` field to a string so it can store `USNo`.
 
-The first local access seed assigns the existing fictional administrator the username **admin** and password **admin**, marked `USLocalDemo=true`. This account is accepted only when `APP_ENV=local`. Seed reruns do not reset a chosen password. All other employee passwords remain private/random until reset; there is no shared employee default.
+For local setup, the seeded administrator uses Worker ID **PT-1000**. Set a private password through the console before the first sign-in. Seed reruns preserve the chosen password.
 
 To choose a private password through controlled console access:
 
@@ -48,7 +48,7 @@ The addresses above are placeholders. An authorized operator must first verify o
 
 ## Login and sessions
 
-- Employees sign in with Worker ID and application password. The administrator may use the `admin` username.
+- Employees sign in with Worker ID and application password. The administrator can sign in with their Worker ID.
 - The initial application is scoped to the company identified by `FOUNDATION_COMPANY_CODE` (default `DEMO` locally). No public company selection or signup was added.
 - Laravel's web auth provider now uses `App\Models\Foundation\User` / `MSUser`. Existing legacy `users` records are preserved, not silently imported. Old numeric-user sessions cannot authenticate as a prefixed foundation user.
 - Access requires `active` account status, recorded approval, completed activation, a password, and a ready mailbox. Mock mailboxes count as ready only in local/testing environments.

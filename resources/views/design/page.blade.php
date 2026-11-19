@@ -13,6 +13,8 @@
     <meta name="robots" content="noindex, nofollow">
     <title>{{ $screen['title'] }} · {{ $design['brand'] }}</title>
     <link rel="stylesheet" href="{{ asset('design-assets/prototype.css') }}">
+    <script src="{{ asset('design-assets/searchable-select.js') }}" defer></script>
+    <script src="{{ asset('design-assets/form-errors.js') }}" defer></script>
     <script src="{{ asset('design-assets/prototype.js') }}" defer></script>
 </head>
 <body class="{{ $auth ? 'auth-page' : '' }} {{ $module && !$auth ? 'with-sidebar' : '' }}">
@@ -58,5 +60,6 @@
 </main>
 <div class="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="preview-dialog" aria-labelledby="dialog-title"><div class="dialog-icon"><x-design.icon name="shield" /></div><h2 id="dialog-title">Confirm preview action</h2><p id="dialog-description">This changes the preview only. No data is saved or sent.</p><form id="dialog-form"><label class="field" id="reason-field" hidden><span>Reason <span class="required">*</span></span><textarea name="reason" rows="3"></textarea></label><div class="dialog-actions"><button type="button" class="button secondary" data-dialog-close>{{ $ui['cancel'] }}</button><button type="submit" class="button primary">Confirm · preview</button></div></form></dialog>
+<x-shared.form-error-dialog />
 </body>
 </html>

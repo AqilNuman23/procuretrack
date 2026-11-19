@@ -36,15 +36,81 @@
         button.setAttribute('aria-label', showing ? t('Hide password') : t('Show password')); button.setAttribute('aria-pressed', String(showing));
     }));
     document.querySelectorAll('form[data-confirm]').forEach(form => form.addEventListener('submit', event => { if (!confirm(form.dataset.confirm)) event.preventDefault(); }));
-    document.querySelectorAll('form').forEach(form => form.addEventListener('submit', event => {
-        if (event.defaultPrevented || form.method.toLowerCase() !== 'post') return;
-        if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
+    const submissionErrors = {
+        401: 'Your session or account access changed. Sign in again before submitting.',
+        403: 'You don’t have permission to submit this form.',
+        419: 'Your form session expired. Reload this page before submitting again.',
+        429: 'Too many attempts. Wait a moment before trying again.',
+    };
+    document.addEventListener('submit', async event => {
+        const form = event.target;
+        if (event.defaultPrevented || form.method !== 'post') return;
+        const submitter = event.submitter;
+        const action = new URL(submitter?.hasAttribute('formaction') ? submitter.formAction : form.action);
+        if (action.origin !== location.origin || !window.showFormErrors) return;
+        event.preventDefault();
+        if (form.dataset.submitting === 'true') return;
+
+        const data = new FormData(form, submitter);
         form.dataset.submitting = 'true';
         form.setAttribute('aria-busy', 'true');
-        // Keep the submitter enabled so its name/value is included in the request.
-        form.querySelectorAll('button[type="submit"],button:not([type])').forEach(button => button.setAttribute('aria-disabled', 'true'));
-        const message = document.createElement('p'); message.setAttribute('role', 'status'); message.textContent = t('Saving, please wait…'); form.append(message);
-    }));
+        const message = document.createElement('p');
+        message.setAttribute('role', 'status');
+        message.textContent = t('Saving, please wait…');
+        form.append(message);
+
+        let navigating = false;
+        let errors = [t('We couldn’t confirm the result. Check whether your changes were saved before trying again.')];
+        try {
+            const response = await fetch(action, {
+                method: 'POST',
+                body: data,
+                redirect: 'error',
+                headers: { Accept: 'application/json', 'X-ProcureTrack-Form': '1' },
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (typeof result.redirect === 'string') {
+                    const destination = new URL(result.redirect, action);
+                    if (destination.origin === location.origin) {
+                        location.assign(destination);
+                        navigating = true;
+                        return;
+                    }
+                }
+            } else if (response.status === 422) {
+                const result = await response.json();
+                const details = Object.values(result.errors ?? {}).flat();
+                errors = details.length ? details.map(t) : [t('Please check the information you entered.')];
+            } else if (submissionErrors[response.status]) {
+                errors = [t(submissionErrors[response.status])];
+            }
+        } catch {
+            // A lost response can follow a successful write, so do not resubmit automatically.
+        } finally {
+            if (!navigating) {
+                delete form.dataset.submitting;
+                form.removeAttribute('aria-busy');
+                message.remove();
+                window.showFormErrors(errors, submitter ?? document.activeElement);
+            }
+        }
+    });
+    document.querySelectorAll('[data-table-controls]').forEach(controls => {
+        const dialog = controls.querySelector('dialog');
+        const trigger = controls.querySelector('[data-table-filters-open]');
+        trigger.addEventListener('click', () => dialog.showModal());
+        dialog.querySelector('[data-table-filters-close]').addEventListener('click', () => dialog.close());
+
+        const search = controls.querySelector('input[type="search"]');
+        search.addEventListener('input', event => {
+            if (!event.isComposing && search.defaultValue.trim() && search.value === '') {
+                search.form.requestSubmit();
+            }
+        });
+    });
+
     window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
     const switchDialog = document.querySelector('#switch-user-dialog');
     if (switchDialog) {
@@ -91,7 +157,9 @@
         document.querySelector('[data-add-entry]').addEventListener('click', () => {
             const row = template.cloneNode(true);
             row.querySelectorAll('[name]').forEach(input => { input.name = input.name.replace(/entries\[\d+\]/, `entries[${counter}]`); });
-            counter++; rows.append(row); row.querySelector('select').focus();
+            counter++; rows.append(row);
+            const select = row.querySelector('select');
+            (window.SearchableSelect?.enhance(select) ?? select).focus();
         });
         rows.addEventListener('click', event => { const button = event.target.closest('[data-remove-entry]'); if (button) button.closest('.group-entry').remove(); });
     }

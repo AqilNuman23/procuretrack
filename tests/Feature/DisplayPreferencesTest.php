@@ -21,6 +21,18 @@ class DisplayPreferencesTest extends TestCase
             ->assertSee('Kata laluan')->assertSee('Log masuk')->assertSee('Tukar kepada mod gelap');
     }
 
+    public function test_popup_submissions_preserve_preference_cookies_and_receive_validation_details(): void
+    {
+        $headers = ['X-ProcureTrack-Form' => '1'];
+
+        $this->postJson('/display-preferences', ['locale' => 'ms', 'theme' => 'light', 'return_to' => '/login'], $headers)
+            ->assertOk()->assertJsonPath('redirect', url('/login'))
+            ->assertCookie('locale', 'ms')->assertCookie('theme', 'light');
+
+        $this->postJson('/login', [], $headers)
+            ->assertUnprocessable()->assertJsonValidationErrors(['login', 'password']);
+    }
+
     public function test_malay_validation_and_switching_back_to_english(): void
     {
         $this->withCookie('locale', 'ms')->post('/login', [])->assertSessionHasErrors(['login', 'password']);

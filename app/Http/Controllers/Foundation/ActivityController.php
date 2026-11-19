@@ -7,6 +7,7 @@ use App\Models\Foundation\EmailHistory;
 use App\Models\Foundation\FoundationError;
 use App\Models\Foundation\FoundationLog;
 use App\Models\Foundation\User;
+use App\Support\Foundation\TableQuery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -26,11 +27,21 @@ class ActivityController extends Controller
             }
         };
 
+        $logs = new TableQuery($request, 'logs');
+        $failures = new TableQuery($request, 'failures');
+        $emails = new TableQuery($request, 'emails');
+        $logQuery = FoundationLog::query()->where(fn ($q) => $scope($q, 'FL'))
+            ->orderBy('FLID', $logs->value('sort', ['asc', 'desc'], 'desc'));
+        $failureQuery = FoundationError::query()->where(fn ($q) => $scope($q, 'FE'))
+            ->orderBy('FEID', $failures->value('sort', ['asc', 'desc'], 'desc'));
+        $emailQuery = EmailHistory::query()->whereHas('user', fn ($q) => $q->where('US_CONo', $company))
+            ->with(['user', 'approver'])->orderBy('EHID', $emails->value('sort', ['asc', 'desc'], 'desc'));
+
         return view('foundation.activity', [
             'title' => 'Activity & error history', 'description' => 'Committed changes, failed writes, and restricted recovery-email history.',
-            'logs' => FoundationLog::query()->where(fn ($q) => $scope($q, 'FL'))->orderByDesc('FLID')->limit(100)->get(),
-            'failures' => FoundationError::query()->where(fn ($q) => $scope($q, 'FE'))->orderByDesc('FEID')->limit(50)->get(),
-            'emailHistory' => EmailHistory::query()->whereHas('user', fn ($q) => $q->where('US_CONo', $company))->with(['user', 'approver'])->orderByDesc('EHID')->limit(50)->get(),
+            'logs' => $logs->paginate($logs->search($logQuery, ['FLNo', 'FLAction', 'FLTable', 'FLRecordNo'])),
+            'failures' => $failures->paginate($failures->search($failureQuery, ['FENo', 'FETable', 'FECode', 'FEMessage', 'FECorrelation'])),
+            'emailHistory' => $emails->paginate($emails->search($emailQuery, ['EHNo'], ['user' => ['USName', 'USWorkerID'], 'approver' => ['USName']])),
         ]);
     }
 }

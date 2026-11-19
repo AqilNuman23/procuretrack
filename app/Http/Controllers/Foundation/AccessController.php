@@ -11,6 +11,7 @@ use App\Models\Foundation\Module;
 use App\Models\Foundation\User;
 use App\Services\Access\AccessManager;
 use App\Services\Access\ModuleAccess;
+use App\Support\Foundation\TableQuery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -38,15 +39,32 @@ class AccessController extends Controller
             $grants->where('AXGrantor_USNo', $actor->getKey())->whereHas('user', fn ($q) => $q->where('US_TMNo', $actor->US_TMNo));
         }
 
+        $delegations = Delegation::query()->whereHas('user', fn ($q) => $q->where('US_CONo', $actor->US_CONo))
+            ->when(! $admin, fn ($q) => $q->where('DL_USNo', $actor->getKey()))
+            ->with(['user', 'module']);
+        $memberships = GroupMembership::query()->where('GMActive', true)
+            ->whereHas('user', fn ($q) => $q->where('US_CONo', $actor->US_CONo))
+            ->when(! $admin, fn ($q) => $q->where('GMGrantor_USNo', $actor->USNo)
+                ->whereHas('user', fn ($q) => $q->where('US_TMNo', $actor->US_TMNo)))
+            ->with(['user', 'group', 'grantor']);
+
+        $delegationTable = new TableQuery($request, 'authority');
+        $grantTable = new TableQuery($request, 'grants');
+        $membershipTable = new TableQuery($request, 'assignments');
+        $status = $delegationTable->value('status', ['active', 'revoked']);
+        $level = $grantTable->value('level', ['read', 'edit']);
+        $delegations->when($status !== '', fn ($q) => $q->where('DLActive', $status === 'active'))->orderByDesc('DLID');
+        $grants->when($level !== '', fn ($q) => $q->where('AXLevel', $level))->orderByDesc('AXID');
+        $memberships->orderBy('GMID', $membershipTable->value('sort', ['asc', 'desc'], 'desc'));
+
         return view('foundation.access', [
             'title' => 'Groups & module access', 'description' => 'Assign bounded permissions, with a traceable source for every grant.',
             'admin' => $admin, 'targets' => $targets, 'leafModules' => $leafModules, 'groups' => $groups,
             'roots' => Module::query()->whereNull('MOParent_MONo')->where('MOActive', true)->where('MODelegable', true)->get(),
             'pics' => $admin ? $users->filter(fn ($user) => $access->pic($user) && $access->eligible($user)) : collect(),
-            'delegations' => Delegation::query()->whereHas('user', fn ($q) => $q->where('US_CONo', $actor->US_CONo))->with(['user', 'module'])->get()->filter(fn ($d) => $admin || $d->DL_USNo === $actor->getKey()),
-            'grants' => $grants->orderByDesc('AXID')->get(),
-            'memberships' => GroupMembership::query()->where('GMActive', true)->whereHas('user', fn ($q) => $q->where('US_CONo', $actor->US_CONo))
-                ->when(! $admin, fn ($q) => $q->where('GMGrantor_USNo', $actor->USNo)->whereHas('user', fn ($u) => $u->where('US_TMNo', $actor->US_TMNo)))->with(['user', 'group', 'grantor'])->get(),
+            'delegations' => $delegationTable->paginate($delegationTable->search($delegations, [], ['user' => ['USName', 'USWorkerID'], 'module' => ['MOName']])),
+            'grants' => $grantTable->paginate($grantTable->search($grants, [], ['user' => ['USName', 'USWorkerID'], 'module' => ['MOName'], 'grantor' => ['USName']])),
+            'memberships' => $membershipTable->paginate($membershipTable->search($memberships, [], ['user' => ['USName', 'USWorkerID'], 'group' => ['AGName'], 'grantor' => ['USName']])),
         ]);
     }
 

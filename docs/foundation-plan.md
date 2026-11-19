@@ -315,7 +315,7 @@ Once these are settled, turn the foundation into small user-problem tickets and 
 
 ## 16. Accepted login and permission decisions — 16 November 2026
 
-Worker ID login, local-only admin/admin credentials, private administrator setup, verified recovery-email changes, PIC recovery review, and bounded group/individual module grants are implemented separately from the remaining onboarding/provider work. See [authentication-access.md](authentication-access.md) for the current rules, schema additions, setup commands, and tests.
+Worker ID login, private administrator setup, verified recovery-email changes, PIC recovery review, and bounded group/individual module grants are implemented separately from the remaining onboarding/provider work. See [authentication-access.md](authentication-access.md) for the current rules, schema additions, setup commands, and tests.
 
 
 ## 17. Remaining foundation checklist — 16 November 2026

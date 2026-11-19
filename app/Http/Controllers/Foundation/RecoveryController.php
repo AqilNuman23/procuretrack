@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Foundation\RecoveryRequest;
 use App\Rules\ApplicationPassword;
 use App\Services\RecoveryService;
+use App\Support\Foundation\TableQuery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -70,8 +71,12 @@ class RecoveryController extends Controller
     {
         $actor = $request->user();
         Gate::authorize('manage-recovery');
-        $requests = RecoveryRequest::query()->whereHas('user', fn ($q) => $q->where('US_CONo', $actor->US_CONo))->with('user')->orderByDesc('RQID')->get()
-            ->filter(fn ($item) => $recovery->canReview($actor, $item->user));
+        $table = new TableQuery($request);
+        $status = $table->value('status', ['pending', 'approved', 'rejected', 'completed']);
+        $query = $recovery->reviewableRequests($actor)
+            ->when($status !== '', fn ($q) => $q->where('RQStatus', $status))
+            ->with('user')->orderByDesc('RQID');
+        $requests = $table->paginate($table->search($query, ['RQNo'], ['user' => ['USName', 'USWorkerID']]));
 
         return view('foundation.recovery', ['title' => 'Recovery requests', 'description' => 'Verify identity before approving a company-mailbox reset.', 'requests' => $requests]);
     }

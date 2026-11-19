@@ -3,3 +3,9 @@
 @source "../**/*.blade.php";
 @source "../**/*.js";
 @source "../**/*.vue";
+
+@layer base {
+    body {
+        font-weight: 500;
+    }
+}

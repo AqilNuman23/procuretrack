@@ -29,6 +29,7 @@ use App\Models\Foundation\User;
 use App\Models\Foundation\UserRole;
 
 return [
+    'procurement_demo_password' => env('PROCUREMENT_DEMO_PASSWORD'),
     'company_code' => env('FOUNDATION_COMPANY_CODE', 'DEMO'),
     // MS/TR table aliases also identify history subjects without storing class names.
     'models' => [

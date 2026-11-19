@@ -29,9 +29,5 @@ class AccessSeeder extends Seeder
                 $writer->create(GroupItem::class, ['GI_AGNo' => $group->getKey(), 'GI_MONo' => $modules['finance.overview']->getKey(), 'GILevel' => $level], $admin);
             }
         }
-        // Never overwrite a password chosen after the first local setup.
-        if (app()->environment('local') && $admin->USLoginName === null) {
-            $writer->update($admin, ['USLoginName' => 'admin', 'USPassword' => 'admin', 'USLocalDemo' => true], $admin);
-        }
     }
 }

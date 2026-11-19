@@ -1,2 +1,66 @@
 .live-content{padding-top:28px}.auth-main.live-content{padding-top:38px}.live-content .module-grid{margin-bottom:30px}.live-content .error-notice{background:#34232c;border-color:#69404b;color:#ffc1c8}.error-notice ul{margin:7px 0 0;padding-left:18px}.dropdown-button{display:block;border:0;background:transparent;width:100%;text-align:left;padding:10px;border-radius:6px;font-size:13px}.dropdown-button:hover{background:#27344a}.auth-footnote a{color:var(--blue)}.group-entry{display:grid;grid-template-columns:minmax(0,1fr) 130px 31px;align-items:end;gap:10px;margin-bottom:16px}.group-entry .icon-button{margin-bottom:6px}.live-content pre{white-space:pre-wrap;overflow-wrap:anywhere;min-width:240px;max-width:540px;font-size:11px;background:#0c1421;padding:14px;border-radius:7px}.live-content summary{cursor:pointer;color:var(--blue)}.live-pagination{margin-bottom:25px;color:var(--muted)}.live-pagination nav>div{display:flex;flex-wrap:wrap;gap:15px;justify-content:space-between}.live-pagination svg{width:16px;height:16px}.live-pagination a{display:inline-flex;padding:6px 10px;border:1px solid var(--border);border-radius:6px;color:var(--blue)}.live-content select[multiple]{min-height:125px}.live-content select[multiple] option{padding:7px}.live-content .form-fields>.muted{font-size:12px}.live-content details summary{font-size:12px}.live-content td .button{font-size:11px;padding:7px 10px}.live-content .form-panel{width:100%}.live-content .field input:disabled{opacity:.8}.live-content .page-footer{margin-top:auto}.live-content .auth-footnote{margin-top:12px}@media(max-width:760px){.group-entry{grid-template-columns:1fr 31px}.group-entry .field:first-child{grid-column:1/-1}.live-content .attention-row{flex-wrap:wrap}.live-content .attention-row form{margin-left:auto}.live-content .detail-list dd{max-width:65%;font-size:11px}.live-content .module-grid{grid-template-columns:1fr}}
 .topbar-actions{display:flex;align-items:center;gap:12px}.impersonation-banner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap}.impersonation-banner p{color:inherit}.switch-user-dialog{color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:24px;width:min(560px,calc(100vw - 32px));max-height:85vh;overflow:auto}.switch-user-dialog::backdrop{background:rgb(0 0 0 / .65)}.switch-user-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.switch-user-dialog>p{font-size:13px;line-height:1.6;margin-bottom:16px}.switch-user-dialog .field{margin:14px 0}.switch-user-dialog input,.switch-user-dialog select{width:100%;color:var(--text);background:var(--bg);border:1px solid var(--border);padding:10px;border-radius:6px}.switch-user-dialog option{padding:8px}.switch-user-dialog .form-actions{padding:16px 0 0;display:flex;flex-wrap:wrap;gap:10px}.switch-user-dialog [data-switch-state]{margin-top:14px}.switch-user-dialog [data-switch-search]{display:flex;gap:10px;align-items:center}.switch-user-dialog [data-switch-search] .field{flex:1;min-width:0}@media(max-width:600px){.topbar-actions{gap:6px}.topbar-actions>.button{font-size:11px;padding:7px}.switch-user-dialog{padding:18px}}
+
+.live-table-controls {
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.live-table-search {
+    display: flex;
+    flex: 0 1 360px;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 0;
+    margin-inline-start: auto;
+}
+
+.live-table-search .search-field {
+    flex: 1;
+    min-width: 0;
+}
+
+@media (max-width: 560px) {
+    .live-table-search {
+        flex: 1 1 100%;
+    }
+}
+
+.table-page-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 12px 20px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+}
+
+.table-page-size,
+.table-page-navigation {
+    display: flex;
+    align-items: end;
+    gap: 8px;
+}
+
+.table-page-size .field {
+    gap: 4px;
+}
+
+.table-page-navigation {
+    align-items: center;
+    min-height: 40px;
+    font-size: 12px;
+}
+
+.panel > .table-page-controls {
+    margin-bottom: 0;
+}
+
+.table-page-size .searchable-select-popup {
+    inset-block: auto calc(100% + 5px);
+}
+
+.table-page-controls {
+    font-weight: 500;
+}
