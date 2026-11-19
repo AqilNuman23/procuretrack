@@ -27,21 +27,35 @@ class ActivityController extends Controller
             }
         };
 
-        $logs = new TableQuery($request, 'logs');
-        $failures = new TableQuery($request, 'failures');
-        $emails = new TableQuery($request, 'emails');
-        $logQuery = FoundationLog::query()->where(fn ($q) => $scope($q, 'FL'))
-            ->orderBy('FLID', $logs->value('sort', ['asc', 'desc'], 'desc'));
-        $failureQuery = FoundationError::query()->where(fn ($q) => $scope($q, 'FE'))
-            ->orderBy('FEID', $failures->value('sort', ['asc', 'desc'], 'desc'));
-        $emailQuery = EmailHistory::query()->whereHas('user', fn ($q) => $q->where('US_CONo', $company))
-            ->with(['user', 'approver'])->orderBy('EHID', $emails->value('sort', ['asc', 'desc'], 'desc'));
+        $tabs = [
+            'logs' => 'Committed changes',
+            'failures' => 'Failed writes',
+            'emails' => 'Recovery email history',
+        ];
+        $tab = (new TableQuery($request))->value('tab', array_keys($tabs), 'logs');
+        $table = new TableQuery($request, $tab);
+        $sort = $table->value('sort', ['asc', 'desc'], 'desc');
+
+        $query = match ($tab) {
+            'logs' => $table->search(
+                FoundationLog::query()->where(fn ($q) => $scope($q, 'FL'))->orderBy('FLID', $sort),
+                ['FLNo', 'FLAction', 'FLTable', 'FLRecordNo'],
+            ),
+            'failures' => $table->search(
+                FoundationError::query()->where(fn ($q) => $scope($q, 'FE'))->orderBy('FEID', $sort),
+                ['FENo', 'FETable', 'FECode', 'FEMessage', 'FECorrelation'],
+            ),
+            'emails' => $table->search(
+                EmailHistory::query()->whereHas('user', fn ($q) => $q->where('US_CONo', $company))
+                    ->with(['user', 'approver'])->orderBy('EHID', $sort),
+                ['EHNo'],
+                ['user' => ['USName', 'USWorkerID'], 'approver' => ['USName']],
+            ),
+        };
 
         return view('foundation.activity', [
             'title' => 'Activity & error history', 'description' => 'Committed changes, failed writes, and restricted recovery-email history.',
-            'logs' => $logs->paginate($logs->search($logQuery, ['FLNo', 'FLAction', 'FLTable', 'FLRecordNo'])),
-            'failures' => $failures->paginate($failures->search($failureQuery, ['FENo', 'FETable', 'FECode', 'FEMessage', 'FECorrelation'])),
-            'emailHistory' => $emails->paginate($emails->search($emailQuery, ['EHNo'], ['user' => ['USName', 'USWorkerID'], 'approver' => ['USName']])),
+            'tabs' => $tabs, 'tab' => $tab, 'records' => $table->paginate($query),
         ]);
     }
 }

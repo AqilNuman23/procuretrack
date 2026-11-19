@@ -64,3 +64,123 @@
 .table-page-controls {
     font-weight: 500;
 }
+
+.module-overview-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+    gap: 16px;
+}
+
+.module-overview-card {
+    min-height: 148px;
+    margin-bottom: 0;
+}
+
+.module-overview-card h2 {
+    margin-top: auto;
+}
+
+.module-overview-card .tile-icon {
+    width: 48px;
+    height: 48px;
+}
+
+.module-overview-card .tile-icon .icon {
+    width: 24px;
+    height: 24px;
+}
+
+.workspace-page-title {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.page-information {
+    flex: none;
+}
+
+.page-information summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.page-information summary::-webkit-details-marker {
+    display: none;
+}
+
+.page-information[open] summary {
+    border-color: var(--blue);
+    color: var(--blue);
+}
+
+.page-information-content {
+    position: absolute;
+    z-index: 10;
+    inset-block-start: calc(100% + 8px);
+    inset-inline-start: 0;
+    width: min(380px, calc(100vw - 48px));
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    box-shadow: 0 10px 24px #0004;
+}
+
+.history-tabs {
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    overflow: visible;
+}
+
+.history-tabs a {
+    padding: 8px 4px 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.create-dialog {
+    width: min(560px, calc(100% - 32px));
+    max-width: none;
+    max-height: calc(100dvh - 32px);
+    background: var(--panel);
+    border-color: var(--border);
+}
+
+.create-dialog h2 {
+    margin: 0 0 22px;
+}
+
+.create-dialog .form-fields {
+    padding: 0;
+}
+
+.create-dialog .searchable-select-popup {
+    position: static;
+    width: 100%;
+    margin-top: 5px;
+    box-shadow: none;
+}
+
+.table-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.table-cell-detail {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.table-row-actions .create-dialog {
+    white-space: normal;
+}
+
+.confirmation-dialog {
+    background: var(--panel);
+    border-color: var(--border);
+}

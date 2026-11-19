@@ -1,7 +1,16 @@
 @extends('foundation.layout')
 @section('content')
 @if(!$currentModule->MOParent_MONo)
-<div class="settings-grid">@forelse($children as $child)<a class="panel setting-card" href="{{ route('modules.show', $child->MOCode) }}"><span class="tile-icon blue"><x-design.icon name="grid" /></span><h2>{{ __($child->MOName) }}</h2><span class="badge blue">{{ $access->can($actor, $child, 'edit') ? __('Read & Edit') : __('Read') }}</span><span class="quiet-link">{{ __('Open') }} <x-design.icon name="arrow" /></span></a>@empty<section class="panel prose"><p>{{ __('No pages are assigned in this module.') }}</p></section>@endforelse</div>
+<div class="settings-grid module-overview-grid">
+    @forelse($children as $child)
+        <a class="panel setting-card module-overview-card" href="{{ route('modules.show', $child->MOCode) }}">
+            <span class="tile-icon"><x-design.icon :name="$registry[$child->MOCode]['icon'] ?? 'grid'" /></span>
+            <h2>{{ __($child->MOName) }}</h2>
+        </a>
+    @empty
+        <section class="panel prose"><p>{{ __('No pages are assigned in this module.') }}</p></section>
+    @endforelse
+</div>
 @elseif($users !== null)
 <x-foundation.table :records="$users" :headers="[__('Name'), __('Worker ID'), __('Team'), __('Account status')]">
     <x-slot:toolbar>

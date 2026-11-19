@@ -1,5 +1,7 @@
 # ProcureTrack application shell design
 
+For current workspace conventions, use the [UI design guide](ui-design-guide.md). The sketches below record the original design ticket.
+
 Status: first design draft for review. No application features are implemented by this document.
 
 ## Agreed direction

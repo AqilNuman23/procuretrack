@@ -30,7 +30,6 @@
     <div class="drawer-backdrop" data-drawer-close hidden></div>
     <aside class="sidebar" id="module-navigation" aria-label="Module navigation">
         <div class="sidebar-brand"><a class="brand" href="{{ $url('hub') }}"><span class="brand-mark">p<span>.</span></span>{{ $design['brand'] }}</a><button class="icon-button mobile-only" data-drawer-close aria-label="Close navigation"><x-design.icon name="close" /></button></div>
-        <a class="all-modules" href="{{ $url('hub') }}"><x-design.icon name="grid" />{{ $ui['all_modules'] }}<x-design.icon name="chevron" /></a>
         <div class="nav-label">{{ $module['name'] }}</div>
         <nav>
             @foreach($module['links'] as $link)

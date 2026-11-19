@@ -215,7 +215,9 @@ class AccountAccessTest extends TestCase
         $this->post('/verify-recovery-email', ['token' => $verification])->assertSessionHasErrors('token');
         $this->assertSame(1, EmailHistory::query()->count());
         $this->signIn('PT-1000');
-        $this->get('/activity')->assertOk()->assertSee($new);
+        $this->get('/activity')->assertOk()->assertDontSee($new);
+        $this->get('/activity?tab=emails')->assertOk()->assertSee($new);
+        $this->get('/activity?tab=failures')->assertOk()->assertSee('DEMO_WRITE_FAILURE');
         $this->signIn('PT-1011');
         $this->get('/activity')->assertForbidden();
     }

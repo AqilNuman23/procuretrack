@@ -35,7 +35,23 @@
         input.type = showing ? 'text' : 'password'; button.textContent = showing ? t('Hide') : t('Show');
         button.setAttribute('aria-label', showing ? t('Hide password') : t('Show password')); button.setAttribute('aria-pressed', String(showing));
     }));
-    document.querySelectorAll('form[data-confirm]').forEach(form => form.addEventListener('submit', event => { if (!confirm(form.dataset.confirm)) event.preventDefault(); }));
+    const confirmationDialog = document.querySelector('[data-confirmation-dialog]');
+    const confirmationMessage = confirmationDialog.querySelector('[data-confirmation-message]');
+    const confirmationSubmit = confirmationDialog.querySelector('[data-confirmation-submit]');
+    let pendingConfirmation;
+    let confirmedForm;
+    confirmationDialog.addEventListener('close', () => { pendingConfirmation = undefined; });
+    confirmationDialog.querySelector('[data-confirmation-cancel]').addEventListener('click', () => confirmationDialog.close());
+    confirmationSubmit.addEventListener('click', () => {
+        const { form, submitter } = pendingConfirmation;
+        confirmationDialog.close();
+        confirmedForm = form;
+        try {
+            form.requestSubmit(submitter ?? undefined);
+        } finally {
+            confirmedForm = undefined;
+        }
+    });
     const submissionErrors = {
         401: 'Your session or account access changed. Sign in again before submitting.',
         403: 'You don’t have permission to submit this form.',
@@ -46,6 +62,17 @@
         const form = event.target;
         if (event.defaultPrevented || form.method !== 'post') return;
         const submitter = event.submitter;
+        if (form.dataset.confirm && confirmedForm !== form) {
+            event.preventDefault();
+            if (confirmationDialog.open || form.dataset.submitting === 'true') return;
+            pendingConfirmation = { form, submitter };
+            confirmationMessage.textContent = form.dataset.confirm;
+            confirmationSubmit.textContent = submitter?.textContent.trim() || t('Confirm');
+            confirmationSubmit.classList.toggle('danger', submitter?.classList.contains('danger') ?? false);
+            confirmationSubmit.classList.toggle('primary', !confirmationSubmit.classList.contains('danger'));
+            confirmationDialog.showModal();
+            return;
+        }
         const action = new URL(submitter?.hasAttribute('formaction') ? submitter.formAction : form.action);
         if (action.origin !== location.origin || !window.showFormErrors) return;
         event.preventDefault();
@@ -97,6 +124,24 @@
             }
         }
     });
+    const pageInformation = document.querySelector('[data-page-information]');
+    if (pageInformation) {
+        document.addEventListener('click', event => {
+            if (!pageInformation.contains(event.target)) pageInformation.open = false;
+        });
+        pageInformation.addEventListener('keydown', event => {
+            if (event.key !== 'Escape' || !pageInformation.open) return;
+            pageInformation.open = false;
+            pageInformation.querySelector('summary').focus();
+        });
+    }
+
+    document.querySelectorAll('[data-create-dialog]').forEach(control => {
+        const dialog = control.querySelector('dialog');
+        control.querySelector('[data-create-open]').addEventListener('click', () => dialog.showModal());
+        control.querySelector('[data-create-close]').addEventListener('click', () => dialog.close());
+    });
+
     document.querySelectorAll('[data-table-controls]').forEach(controls => {
         const dialog = controls.querySelector('dialog');
         const trigger = controls.querySelector('[data-table-filters-open]');
